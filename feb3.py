@@ -29,7 +29,7 @@ def try_f(f, args=[], kwargs={}, depth=0):
 
 
 note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-
+PITCHCLASSES = range(12)
 
 def spell(chord):
     # TODO detect if flats or sharps should be used
@@ -298,6 +298,23 @@ class Piece(object):
         print 'Number of different chords: ', len(c)
         for k, n in c.most_common():
             print n, k
+
+        from harmony_utils import get_all_transpositions, allowed_chord_types
+        # Count Chord Types
+        chord_type_counter = Counter()
+        chords = c.keys()
+
+        for chord in chords:
+            transpositions = get_all_transpositions(chord)
+            for t in transpositions:
+                if t in allowed_chord_types:
+                    chord_type_counter[t] += 1
+                    continue
+        print
+        print 'Number of different chord types: ', len(chord_type_counter)
+        for k, n in chord_type_counter.most_common():
+            print n, k
+
         return lines
 
     # def to_csv(self):
