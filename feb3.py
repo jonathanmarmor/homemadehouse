@@ -31,6 +31,7 @@ def try_f(f, args=[], kwargs={}, depth=0):
 note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 PITCHCLASSES = range(12)
 
+
 def spell(chord):
     # TODO detect if flats or sharps should be used
     return ' '.join([note_names[p] for p in chord])
@@ -39,7 +40,7 @@ def spell(chord):
 class Piece(object):
     def __init__(self, n_events=40, config='musicians.yaml'):
         self.n_events = n_events
-        self.n = 0
+        self.done = False
 
         self.musicians = yaml.load(open(config, 'rb'))
 
@@ -50,15 +51,19 @@ class Piece(object):
         self.score = []
         self.grid = {name: [] for name in self.musicians}
 
+        # `reality` Needs a better variable name
+        # This contains all the things happening between events
+        self.reality = []
+
         self.pc_counter = Counter()
-        for pc in range(12):
-            self.pc_counter[pc] = 0
 
         self._event_generator = self._get_event_generator()
 
     def _get_event_generator(self):
         while True:
             event = try_f(self.get_event)
+            if event:
+                self.add_event(event)
             yield event
 
     def next(self):
@@ -67,10 +72,8 @@ class Piece(object):
     def run(self, n_events=None):
         if not n_events:
             n_events = self.n_events
-        while len(self.score) < n_events:
-            event = self.next()
-            if event:
-                self.add_event(event)
+        while not self.done:
+            self.next()
 
     def pick_harmony(self, entering, harmony_options, holdover_pitches):
         pitches = {name: [] for name in entering}
@@ -127,14 +130,15 @@ class Piece(object):
         return pitches
 
     def get_new_seed(self):
-        # Randomly choose from the pitchclasses that have occurred the lease
+        # Randomly choose from the pitchclasses that have occurred the least
         pcs_by_count = defaultdict(list)
-        for pc in self.pc_counter:
+
+        for pc in PITCHCLASSES:
             count = self.pc_counter[pc]
             pcs_by_count[count].append(pc)
-        for count in sorted(pcs_by_count.keys()):
-            if pcs_by_count[count]:
-                return random.choice(pcs_by_count[count])
+
+        lowest_count = min(pcs_by_count.keys())
+        return random.choice(pcs_by_count[lowest_count])
 
     def make_new_harmony(self, entering, holdover_pitches):
         if not entering and not is_allowed(holdover_pitches):
@@ -146,8 +150,7 @@ class Piece(object):
         if not holdover_pitches:
             # Choose a new pitch
             print
-            print 'no holdovers'
-            print 'pc_counter', self.pc_counter
+            print 'no holdovers. pc_counter:', self.pc_counter
             new_seed = self.get_new_seed()
             print 'new seed', new_seed
             harmony_options = find_all_supersets([new_seed])
@@ -180,12 +183,13 @@ class Piece(object):
         return event
 
     def get_event(self):
-        if self.n_events - self.n < len(self.musicians):
+        n_events_remaining = self.n_events - len(self.score)
+        if n_events_remaining <= len(self.musicians):
             # End game, everyone needs to stop
             playing = [name for name in self.prev_state if self.prev_state[name]]
             if not playing:
                 # We're done.
-                self.n = self.n_events
+                self.done = True
                 return
             if len(playing) == 1:
                 changing = playing
