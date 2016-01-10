@@ -1,0 +1,15 @@
+Kristin:
+    instrument: oboe
+    max_notes: 1
+Jessica:
+    instrument: voice
+    max_notes: 1
+Trevor:
+    instrument: piano
+    max_notes: 10
+Rachel:
+    instrument: cello
+    max_notes: 2
+Andrea:
+    instrument: flute
+    max_notes: 1

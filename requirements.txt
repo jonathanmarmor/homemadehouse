@@ -1,0 +1,2 @@
+pyyaml
+music21==2.0.10

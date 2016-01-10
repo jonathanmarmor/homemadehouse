@@ -1,0 +1,341 @@
+#!/usr/bin/env python
+
+import random
+# import datetime
+# import csv
+# import os
+from collections import Counter, defaultdict
+import argparse
+
+import yaml
+
+from utils import weighted_choice_lists
+from harmony_utils import is_allowed, find_all_supersets
+
+
+MAX_DEPTH = 20
+
+
+def try_f(f, args=[], kwargs={}, depth=0):
+    """Dumb way to try a random process a bunch of times."""
+    depth += 1
+    try:
+        return f(*args, **kwargs)
+    except Exception as e:
+        if depth == MAX_DEPTH:
+            print "C'mon, you tried {} {} times. Fix the code already. Exception: {}".format(f.__name__, MAX_DEPTH, e)
+            raise e
+        return try_f(f, args=args, kwargs=kwargs, depth=depth)
+
+
+note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+
+def spell(chord):
+    # TODO detect if flats or sharps should be used
+    return ' '.join([note_names[p] for p in chord])
+
+
+class Piece(object):
+    def __init__(self, n_events=40, config='musicians.yaml'):
+        self.n_events = n_events
+        self.n = 0
+
+        self.musicians = yaml.load(open(config, 'rb'))
+
+        self.prev_state = {name: [] for name in self.musicians}
+        self.prev_event = {}
+        self.prev_harmony = ()
+
+        self.score = []
+        self.grid = {name: [] for name in self.musicians}
+
+        self.pc_counter = Counter()
+        for pc in range(12):
+            self.pc_counter[pc] = 0
+
+        self._event_generator = self._get_event_generator()
+
+    def _get_event_generator(self):
+        while True:
+            event = try_f(self.get_event)
+            yield event
+
+    def next(self):
+        return self._event_generator.next()
+
+    def run(self, n_events=None):
+        if not n_events:
+            n_events = self.n_events
+        while len(self.score) < n_events:
+            event = self.next()
+            if event:
+                self.add_event(event)
+
+    def pick_harmony(self, entering, harmony_options, holdover_pitches):
+        pitches = {name: [] for name in entering}
+
+        if len(harmony_options) > 1 and self.prev_harmony in harmony_options:
+            harmony_options.remove(self.prev_harmony)
+
+        # pick a harmony
+        # print 'N Harmony Options:', len(harmony_options)
+        harmony_options.reverse()
+        harmony_weights = [int(2 ** n) for n in range(len(harmony_options))]
+        new_harmony = weighted_choice_lists(harmony_options, harmony_weights)
+        new_pitches = [p for p in new_harmony if p not in holdover_pitches]
+
+        # make sure all new pitches are used
+        n = 0
+        while new_pitches:
+            n += 1
+            name = random.choice(entering)
+            p = random.choice(new_pitches)
+            if len(pitches[name]) < self.musicians[name]['max_notes']:
+                pitches[name].append(p)
+                new_pitches.remove(p)
+            if n > 1000:
+                raise Exception('Couldnt allocate all new pitches.')
+
+        # make sure all musicians in entering get pitches
+        n = 0
+        while not all(pitches.values()):
+            n += 1
+            empty = [name for name in pitches if not pitches[name]]
+            name = random.choice(empty)
+            p = random.choice(new_harmony)
+            pitches[name].append(p)
+            if n > 1000:
+                raise Exception('Couldnt fill all entering instruments.')
+
+        # Add some extra notes
+        if random.random() < 0.40:
+            headroom = {name: self.musicians[name]['max_notes'] - len(pitches[name]) for name in entering}
+            for name in headroom:
+                pitch_options = [p for p in new_harmony if p not in pitches[name]]
+                upper = min([len(pitch_options), headroom[name]])
+                if upper:
+                    n_pitches = 1
+                    if upper > 1:
+                        n_pitches = random.randint(1, upper)
+                    ps = random.sample(pitch_options, n_pitches)
+                    pitches[name].extend(ps)
+
+        for name in pitches:
+            pitches[name].sort()
+
+        return pitches
+
+    def get_new_seed(self):
+        # Randomly choose from the pitchclasses that have occurred the lease
+        pcs_by_count = defaultdict(list)
+        for pc in self.pc_counter:
+            count = self.pc_counter[pc]
+            pcs_by_count[count].append(pc)
+        for count in sorted(pcs_by_count.keys()):
+            if pcs_by_count[count]:
+                return random.choice(pcs_by_count[count])
+
+    def make_new_harmony(self, entering, holdover_pitches):
+        if not entering and not is_allowed(holdover_pitches):
+            raise Exception('Pitches dropped out, no new pitches are coming in, and the harmony left behind is not allowed. Try again.')
+
+        if not entering:
+            return {}
+
+        if not holdover_pitches:
+            # Choose a new pitch
+            print
+            print 'no holdovers'
+            print 'pc_counter', self.pc_counter
+            new_seed = self.get_new_seed()
+            print 'new seed', new_seed
+            harmony_options = find_all_supersets([new_seed])
+
+        else:
+            harmony_options = find_all_supersets(holdover_pitches)
+        # return self.pick_harmony(entering, harmony_options, holdover_pitches)
+        return try_f(self.pick_harmony, args=[entering, harmony_options, holdover_pitches])
+
+    def get_pitches(self, changing):
+        event = {}
+        entering = []
+        for name in changing:
+            if not self.prev_state[name]:
+                entering.append(name)
+            else:
+                event[name] = 'stop'
+        # Get pitches that are sustaining from previous
+        holdover_pitches = []
+        not_changing = [name for name in self.musicians if name not in changing]
+        holdovers = [name for name in not_changing if self.prev_state[name]]
+        for name in holdovers:
+            for p in self.prev_state[name]:
+                if p not in holdover_pitches:
+                    holdover_pitches.append(p)
+        holdover_pitches.sort()
+
+        event.update(self.make_new_harmony(entering, holdover_pitches))
+
+        return event
+
+    def get_event(self):
+        if self.n_events - self.n < len(self.musicians):
+            # End game, everyone needs to stop
+            playing = [name for name in self.prev_state if self.prev_state[name]]
+            if not playing:
+                # We're done.
+                self.n = self.n_events
+                return
+            if len(playing) == 1:
+                changing = playing
+            else:
+                n_musicians_opts = range(1, len(playing) + 1)
+                n_musicians_weights = list(reversed([2 ** n for n in n_musicians_opts]))
+                n_musicians_weights[0] = n_musicians_weights[1]
+                num_changing = weighted_choice_lists(n_musicians_opts, n_musicians_weights)
+                changing = random.sample(playing, num_changing)
+        else:
+            not_eligible = [name for name in self.prev_event if self.prev_event[name] != 'stop']
+            if len(not_eligible) == len(self.musicians):
+                not_eligible.remove(random.choice(not_eligible))
+            eligible = [name for name in self.musicians if name not in not_eligible]
+            if len(eligible) == 1:
+                changing = eligible
+            else:
+                n_musicians_opts = range(1, len(eligible) + 1)
+                n_musicians_weights = list(reversed([2 ** n for n in n_musicians_opts]))
+                n_musicians_weights[0] = n_musicians_weights[1]
+                num_changing = weighted_choice_lists(n_musicians_opts, n_musicians_weights)
+                changing = random.sample(eligible, num_changing)
+        # return self.get_pitches(changing)
+        return try_f(self.get_pitches, args=[changing])
+
+    def add_event(self, event):
+
+        self.score.append(event)
+
+        self.prev_event = event
+
+        self.prev_state = {}
+        for name in event:
+            self.prev_state[name] = event[name]
+            if event[name] == 'stop':
+                self.prev_state[name] = []
+
+        for name in event:
+            self.grid[name].append(event[name])
+
+        not_changing = [name for name in self.musicians if name not in event]
+        for name in not_changing:
+            prev = []
+            if self.grid[name]:
+                prev = self.grid[name][-1]
+            if prev == 'stop':
+                prev = []
+            self.grid[name].append(prev)
+            self.prev_state[name] = prev
+
+        self.prev_harmony = self.get_harmony()
+        for p in self.prev_harmony:
+            self.pc_counter[p] += 1
+
+    def get_harmony(self):
+        pitches = []
+        for name in self.grid:
+            if self.grid[name][-1] and self.grid[name][-1] is not 'stop':
+                for p in self.grid[name][-1]:
+                    if p not in pitches:
+                        pitches.append(p)
+        pitches.sort()
+        return tuple(pitches)
+
+    # Reporting, displaying
+
+    def report_score(self):
+        for i, event in enumerate(self.score):
+            print i + 1
+            for name in event:
+                action = event[name]
+                if action != 'stop':
+                    action = spell(event[name])
+                print '  {:>10} {}'.format(name, action)
+            print
+
+    def report_rhythm(self):
+        for name in self.grid:
+            line = []
+            for event in self.grid[name]:
+                if event == [] or event == 'stop':
+                    line.append(' ')
+                else:
+                    line.append('-')
+            print '{:<15}  {}'.format(name, ''.join(line))
+
+    def report_harmonies(self):
+        c = Counter()
+        lines = []
+        actual_length = len(self.grid[self.grid.keys()[0]])
+        for e in range(actual_length):
+            pitches = []
+            for name in self.musicians:
+                if self.grid[name][e] != 'stop':
+                    for p in self.grid[name][e]:
+                        if p not in pitches:
+                            pitches.append(p)
+            harmony = tuple(sorted(pitches))
+            c[harmony] += 1
+            line = []
+            for pc in range(12):
+                if pc in pitches:
+                    line.append('{:<3}'.format(pc))
+                else:
+                    line.append('   ')
+            lines.append(''.join(line))
+        for line in lines:
+            print line
+        print
+        print 'Number of different chords: ', len(c)
+        for k, n in c.most_common():
+            print n, k
+        return lines
+
+    # def to_csv(self):
+    #     now = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    #     if not os.path.isdir('exports'):
+    #         os.mkdir('exports')
+    #     with open('exports/two_three_four_{}.csv'.format(now), 'wb') as f:
+    #         writer = csv.writer(f)
+    #         for i, event in enumerate(self.score):
+    #             line_number = i + 1
+    #             if len(event) > 1:
+    #                 writer.writerow([line_number, None, None])
+    #                 line_number = None
+    #             for name in event:
+    #                 action = event[name]
+    #                 if action == 'stop':
+    #                     action = None
+    #                 else:
+    #                     action = spell(event[name])
+    #                 writer.writerow([line_number, name, action])
+
+    def reports(self):
+        print
+        self.report_score()
+        print
+        self.report_rhythm()
+        print
+        self.report_harmonies()
+        print
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', '-c', default='musicians.yaml', help='Config file defining the musicians.')
+    parser.add_argument('--events', '-e', default=40, help='The number of events to make.', type=int)
+    args = parser.parse_args()
+
+    p = Piece(n_events=args.events, config=args.config)
+    # p.test()
+    p.run()
+    p.reports()

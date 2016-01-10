@@ -1,0 +1,6 @@
+musician,instrument,nickname,max_notes,lowest_note,highest_note
+jessica,soprano,s,1,60,81
+andrea,flute,fl,1,60,96
+kristin,oboe,ob,1,58,92
+trevor,piano,pno,10,21,108
+rachel,cello,vc,2,36,76
