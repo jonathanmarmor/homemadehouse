@@ -54,7 +54,10 @@ class Piece(object):
         # `reality` Needs a better variable name
         # This contains all the things happening between events
         self.reality = []
+        self.harmonies = []
 
+        # Keep one or the other of these counters. pitchclass_count is a newer implementation and probably more correct.
+        self.pitchclass_count = Counter()  #
         self.pc_counter = Counter()
 
         self._event_generator = self._get_event_generator()
@@ -244,6 +247,59 @@ class Piece(object):
         for p in self.prev_harmony:
             self.pc_counter[p] += 1
 
+
+
+        # Extend reality :)
+        new_reality = self._get_new_reality(event)
+        self.reality.append(new_reality)
+
+        # Calculate new harmony and append to list of harmonies
+        previous_harmony = []
+        if len(self.harmonies):
+            previous_harmony = self.harmonies[-1]
+
+        harmony = []
+        for musician in new_reality:
+            pitches = new_reality[musician]
+            harmony.extend(pitches)
+        harmony = list(set(harmony))
+        harmony.sort()
+        self.harmonies.append(harmony)
+
+        # Count pitchclasses
+        new_pitchclasses = [p for p in harmony if p not in previous_harmony]
+        print 'new_pitchclasses', new_pitchclasses
+        # Increment pitch class counter
+        for pitch in new_pitchclasses:
+            self.pitchclass_count[pitch] += 1
+
+    def _get_new_reality(self, event):
+        # Make new reality: the actual music being played between events.
+        new_reality = {}
+
+        previous_reality = {}
+        if len(self.reality):
+            previous_reality = self.reality[-1]
+
+        for musician in self.musicians:
+            previous = previous_reality.get(musician)
+            action = event.get(musician)
+
+            if action and action is not 'stop':
+                # Was playing ==> New content ==> Add from event
+                # Wasn't playing ==> New content ==> Add from event
+                new_reality[musician] = action
+
+            if previous and not action:
+                # Was playing ==> Not in event ==> Add from previous reality
+                new_reality[musician] = previous
+
+            # Was playing ==> Stop ==> Do nothing
+            # Wasn't playing ==> Not in event ==> Do nothing
+            # Wasn't playing ==> Stop ==> Do nothing (not possible)
+
+        return new_reality
+
     def get_harmony(self):
         pitches = []
         for name in self.grid:
@@ -259,7 +315,7 @@ class Piece(object):
     def report_score(self):
         for i, event in enumerate(self.score):
             print i + 1
-            for name in event:
+            for name in sorted(event.keys()):
                 action = event[name]
                 if action != 'stop':
                     action = spell(event[name])
