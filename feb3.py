@@ -101,7 +101,7 @@ class Piece(object):
             harmony_options.remove(self.prev_harmony)
 
         if not harmony_options:
-            raise Exception('Only harmony option is the previous harmony.')
+            raise Exception('Only harmony option is the previous harmony')
 
         event = {}
         if entering:
@@ -119,15 +119,12 @@ class Piece(object):
         holdover_pitches = self.get_holdover_pitches(changing)
 
         if not entering and not is_allowed(holdover_pitches):
-            raise Exception('Pitches dropped out, no new pitches are coming in, and the harmony left behind is not allowed. Try again.')
+            raise Exception('Pitches dropped out, no new pitches are coming in, and the harmony left behind is not allowed')
 
         return entering, exiting, holdover_pitches
 
     def pick_harmony(self, entering, harmony_options, holdover_pitches):
         pitches = {name: [] for name in entering}
-
-        if len(harmony_options) > 1 and self.prev_harmony in harmony_options:
-            harmony_options.remove(self.prev_harmony)
 
         # pick a harmony
         # print 'N Harmony Options:', len(harmony_options)
@@ -137,18 +134,22 @@ class Piece(object):
         new_pitches = [p for p in new_harmony if p not in holdover_pitches]
 
         # make sure all new pitches are used
-        n = 0
+
+        if len(new_pitches) > sum([self.musicians[name]['max_notes'] for name in entering]):
+            raise Exception('Couldnt allocate all new pitches')
+
+        # n = 0
         while new_pitches:
-            n += 1
+            # n += 1
             name = random.choice(entering)
             p = random.choice(new_pitches)
             if len(pitches[name]) < self.musicians[name]['max_notes']:
                 pitches[name].append(p)
                 new_pitches.remove(p)
-            if n > 1000:
-                raise Exception('Couldnt allocate all new pitches.')
+            # if n > 1000:
+            #     raise Exception('Couldnt allocate all new pitches')
 
-        # make sure all musicians in entering get pitches
+        # make sure all musicians entering get pitches
         n = 0
         while not all(pitches.values()):
             n += 1
@@ -157,7 +158,7 @@ class Piece(object):
             p = random.choice(new_harmony)
             pitches[name].append(p)
             if n > 1000:
-                raise Exception('Couldnt fill all entering instruments.')
+                raise Exception('Couldnt fill all entering instruments')
 
         # Add some extra notes
         if random.random() < 0.40:
