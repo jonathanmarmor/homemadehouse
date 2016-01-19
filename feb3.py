@@ -13,7 +13,10 @@ from utils import weighted_choice_lists
 from harmony_utils import is_allowed, find_all_supersets
 
 
-MAX_DEPTH = 20
+MAX_DEPTH = 100
+
+
+exception_counter = Counter()
 
 
 def try_f(f, args=[], kwargs={}, depth=0):
@@ -22,6 +25,7 @@ def try_f(f, args=[], kwargs={}, depth=0):
     try:
         return f(*args, **kwargs)
     except Exception as e:
+        exception_counter['{}: {}'.format(f.__name__, e.message)] += 1
         if depth == MAX_DEPTH:
             print "C'mon, you tried {} {} times. Fix the code already. Exception: {}".format(f.__name__, MAX_DEPTH, e)
             raise e
@@ -64,6 +68,7 @@ class Piece(object):
 
     def _get_event_generator(self):
         while True:
+            # event = self.get_event()
             event = try_f(self.get_event)
             if event:
                 self.add_event(event)
@@ -77,6 +82,40 @@ class Piece(object):
             n_events = self.n_events
         while not self.done:
             self.next()
+
+    def get_event(self):
+        # entering, exiting, holdover_pitches = self.get_entering_exiting_and_holdover_pitches()
+        entering, exiting, holdover_pitches = try_f(self.get_entering_exiting_and_holdover_pitches)
+
+        if holdover_pitches:
+            harmony_options = find_all_supersets(holdover_pitches)
+        else:
+            # Choose a new pitch
+            # print
+            # print 'no holdovers. pc_counter:', self.pc_counter
+            new_seed = self.get_new_seed()
+            # print 'new seed', new_seed
+            harmony_options = find_all_supersets([new_seed])
+
+        event = {}
+        if entering:
+            # event = self.pick_harmony(entering, harmony_options, holdover_pitches)
+            event = try_f(self.pick_harmony, args=[entering, harmony_options, holdover_pitches])
+
+        for name in exiting:
+            event[name] = 'stop'
+
+        return event
+
+    def get_entering_exiting_and_holdover_pitches(self):
+        changing = self.get_changing_musicians()
+        entering, exiting = self.get_enterers_and_exiters(changing, self.prev_state)
+        holdover_pitches = self.get_holdover_pitches(changing)
+
+        if not entering and not is_allowed(holdover_pitches):
+            raise Exception('Pitches dropped out, no new pitches are coming in, and the harmony left behind is not allowed. Try again.')
+
+        return entering, exiting, holdover_pitches
 
     def pick_harmony(self, entering, harmony_options, holdover_pitches):
         pitches = {name: [] for name in entering}
@@ -143,34 +182,7 @@ class Piece(object):
         lowest_count = min(pcs_by_count.keys())
         return random.choice(pcs_by_count[lowest_count])
 
-    def make_new_harmony(self, entering, holdover_pitches):
-        if not entering and not is_allowed(holdover_pitches):
-            raise Exception('Pitches dropped out, no new pitches are coming in, and the harmony left behind is not allowed. Try again.')
-
-        if not entering:
-            return {}
-
-        if not holdover_pitches:
-            # Choose a new pitch
-            print
-            print 'no holdovers. pc_counter:', self.pc_counter
-            new_seed = self.get_new_seed()
-            print 'new seed', new_seed
-            harmony_options = find_all_supersets([new_seed])
-
-        else:
-            harmony_options = find_all_supersets(holdover_pitches)
-        # return self.pick_harmony(entering, harmony_options, holdover_pitches)
-        return try_f(self.pick_harmony, args=[entering, harmony_options, holdover_pitches])
-
-    def get_pitches(self, changing):
-        event = {}
-        entering = []
-        for name in changing:
-            if not self.prev_state[name]:
-                entering.append(name)
-            else:
-                event[name] = 'stop'
+    def get_holdover_pitches(self, changing):
         # Get pitches that are sustaining from previous
         holdover_pitches = []
         not_changing = [name for name in self.musicians if name not in changing]
@@ -180,12 +192,20 @@ class Piece(object):
                 if p not in holdover_pitches:
                     holdover_pitches.append(p)
         holdover_pitches.sort()
+        return holdover_pitches
 
-        event.update(self.make_new_harmony(entering, holdover_pitches))
+    def get_enterers_and_exiters(self, changing, previous_state):
+        # if already playing, stop
+        entering = []
+        exiting = []
+        for name in changing:
+            if not previous_state.get(name):
+                entering.append(name)
+            else:
+                exiting.append(name)
+        return entering, exiting
 
-        return event
-
-    def get_event(self):
+    def get_changing_musicians(self):
         n_events_remaining = self.n_events - len(self.score)
         if n_events_remaining <= len(self.musicians):
             # End game, everyone needs to stop
@@ -193,9 +213,9 @@ class Piece(object):
             if not playing:
                 # We're done.
                 self.done = True
-                return
+                return []
             if len(playing) == 1:
-                changing = playing
+                changing = playing[:]
             else:
                 n_musicians_opts = range(1, len(playing) + 1)
                 n_musicians_weights = list(reversed([2 ** n for n in n_musicians_opts]))
@@ -208,15 +228,14 @@ class Piece(object):
                 not_eligible.remove(random.choice(not_eligible))
             eligible = [name for name in self.musicians if name not in not_eligible]
             if len(eligible) == 1:
-                changing = eligible
+                changing = eligible[:]
             else:
                 n_musicians_opts = range(1, len(eligible) + 1)
                 n_musicians_weights = list(reversed([2 ** n for n in n_musicians_opts]))
                 n_musicians_weights[0] = n_musicians_weights[1]
                 num_changing = weighted_choice_lists(n_musicians_opts, n_musicians_weights)
                 changing = random.sample(eligible, num_changing)
-        # return self.get_pitches(changing)
-        return try_f(self.get_pitches, args=[changing])
+        return changing
 
     def add_event(self, event):
 
@@ -404,6 +423,7 @@ class Piece(object):
         print
         self.report_harmonies()
         print
+        print exception_counter.most_common()
 
 
 if __name__ == '__main__':
