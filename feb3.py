@@ -9,7 +9,7 @@ import argparse
 
 import yaml
 
-from utils import weighted_choice_lists
+from utils import weighted_choice_lists, weighted_choice_dict
 from harmony_utils import is_allowed, find_all_supersets
 
 
@@ -130,7 +130,16 @@ class Piece(object):
         # print 'N Harmony Options:', len(harmony_options)
         harmony_options.reverse()
         harmony_weights = [int(2 ** n) for n in range(len(harmony_options))]
-        new_harmony = weighted_choice_lists(harmony_options, harmony_weights)
+
+        harmony_options = {opt: weight for opt, weight in zip(harmony_options, harmony_weights)}
+
+        # Reduce repetitions of harmonies
+        for h in self.harmonies:
+            h = tuple(h)
+            if h in harmony_options:
+                harmony_options[h] = harmony_options[h] / 10
+
+        new_harmony = weighted_choice_dict(harmony_options)
         new_pitches = [p for p in new_harmony if p not in holdover_pitches]
 
         # make sure all new pitches are used
