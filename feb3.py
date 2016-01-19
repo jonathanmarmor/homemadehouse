@@ -97,6 +97,12 @@ class Piece(object):
             # print 'new seed', new_seed
             harmony_options = find_all_supersets([new_seed])
 
+        if self.prev_harmony in harmony_options:
+            harmony_options.remove(self.prev_harmony)
+
+        if not harmony_options:
+            raise Exception('Only harmony option is the previous harmony.')
+
         event = {}
         if entering:
             # event = self.pick_harmony(entering, harmony_options, holdover_pitches)
