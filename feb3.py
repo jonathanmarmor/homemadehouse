@@ -137,7 +137,16 @@ class Piece(object):
         for h in self.harmonies:
             h = tuple(h)
             if h in harmony_options:
-                harmony_options[h] = harmony_options[h] / 10
+                harmony_options[h] = harmony_options[h] / 10.0
+
+        # Reduce repetitions of pitch classes
+        n = len(self.pitchclass_count)
+        for pc, count in self.pitchclass_count.most_common():
+            for h in harmony_options:
+                if pc in h:
+                    h = tuple(h)
+                    harmony_options[h] = harmony_options[h] / float(n)
+            n -= 1
 
         new_harmony = weighted_choice_dict(harmony_options)
         new_pitches = [p for p in new_harmony if p not in holdover_pitches]
