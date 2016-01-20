@@ -11,6 +11,7 @@ import yaml
 
 from utils import weighted_choice_lists, weighted_choice_dict
 from harmony_utils import is_allowed, find_all_supersets
+from notate_score import notate_score
 
 
 MAX_DEPTH = 100
@@ -47,6 +48,15 @@ class Piece(object):
         self.done = False
 
         self.musicians = yaml.load(open(config, 'rb'))
+
+        self.musicians_score_order = [
+            'Jessica',
+            'Andrea',
+            'Kristin',
+            'Trevor',
+            'Rachel'
+        ]
+        self.instrument_names = [self.musicians[name]['instrument'] for name in self.musicians_score_order]
 
         self.prev_state = {name: [] for name in self.musicians}
         self.prev_event = {}
@@ -449,6 +459,8 @@ class Piece(object):
         self.report_harmonies()
         print
         print exception_counter.most_common()
+
+        notate_score(self.musicians_score_order, self.instrument_names, self.grid)
 
 
 if __name__ == '__main__':
