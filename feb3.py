@@ -7,8 +7,6 @@ import random
 from collections import Counter, defaultdict
 import argparse
 
-import yaml
-
 from utils import weighted_choice_lists, weighted_choice_dict
 from harmony_utils import is_allowed, find_all_supersets
 from notate_score import notate_score
@@ -43,11 +41,32 @@ def spell(chord):
 
 
 class Piece(object):
-    def __init__(self, n_events=40, config='musicians.yaml'):
+    def __init__(self, n_events=40):
         self.n_events = n_events
         self.done = False
 
-        self.musicians = yaml.load(open(config, 'rb'))
+        self.musicians = {
+            'Andrea': {
+                'instrument': 'flute',
+                'max_notes': 1
+            },
+            'Jessica': {
+                'instrument': 'voice',
+                'max_notes': 1
+            },
+            'Kristin': {
+                'instrument': 'oboe',
+                'max_notes': 1
+            },
+            'Rachel': {
+                'instrument': 'cello',
+                'max_notes': 2
+            },
+            'Trevor': {
+                'instrument': 'piano',
+                'max_notes': 10
+            }
+        }
 
         self.musicians_score_order = [
             'Jessica',
@@ -465,11 +484,10 @@ class Piece(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', '-c', default='musicians.yaml', help='Config file defining the musicians.')
     parser.add_argument('--events', '-e', default=40, help='The number of events to make.', type=int)
     args = parser.parse_args()
 
-    p = Piece(n_events=args.events, config=args.config)
+    p = Piece(n_events=args.events)
     # p.test()
     p.run()
     p.reports()
