@@ -12,7 +12,7 @@ from harmony_utils import is_allowed, find_all_supersets
 from notate_score import notate_score
 
 
-MAX_DEPTH = 100
+MAX_DEPTH = 500
 
 
 exception_counter = Counter()
@@ -38,6 +38,12 @@ PITCHCLASSES = range(12)
 def spell(chord):
     # TODO detect if flats or sharps should be used
     return ' '.join([note_names[p] for p in chord])
+
+
+def funny_range(steps):
+    """get `steps` numbers equally distributed between 2.0 and 1.0"""
+    interval = 1.0 / (steps - 1)
+    return [2.0 - (interval * step) for step in range(steps)]
 
 
 class Piece(object):
@@ -166,24 +172,42 @@ class Piece(object):
         for h in self.harmonies:
             h = tuple(h)
             if h in harmony_options:
-                harmony_options[h] = harmony_options[h] / 10.0
+                harmony_options[h] = harmony_options[h] / 2.0
 
         # Reduce repetitions of pitch classes
-        n = len(self.pitchclass_count)
-        for pc, count in self.pitchclass_count.most_common():
+        count_of_pitchclasses_used = len(self.pitchclass_count)
+        weights_to_reduce = funny_range(count_of_pitchclasses_used)
+        for pc_and_count, weight in zip(self.pitchclass_count.most_common(), weights_to_reduce):
+            pc, count = pc_and_count
             for h in harmony_options:
                 if pc in h:
                     h = tuple(h)
-                    harmony_options[h] = harmony_options[h] / float(n)
-            n -= 1
+                    harmony_options[h] = harmony_options[h] / float(weight)
 
-        new_harmony = weighted_choice_dict(harmony_options)
-        new_pitches = [p for p in new_harmony if p not in holdover_pitches]
+        total_max_notes = sum([self.musicians[name]['max_notes'] for name in entering])
+        # print
+        # print 'total_max_notes', total_max_notes
+        # print 'harmony_options', harmony_options
+        new_pitches = ['placeholder'] * (total_max_notes + 1)
+        new_harmony = None
+        while len(new_pitches) > total_max_notes:
+            if new_harmony in harmony_options:
+                del harmony_options[new_harmony]
+            if not harmony_options:
+                # print "Exception('All harmony options had more new pitches than instruments could play')"
+                raise Exception('All harmony options had more new pitches than instruments could play')
 
-        # make sure all new pitches are used
+            new_harmony = weighted_choice_dict(harmony_options)
+            new_pitches = [p for p in new_harmony if p not in holdover_pitches]
+            # print 'len(new_pitches)', len(new_pitches)
 
-        if len(new_pitches) > sum([self.musicians[name]['max_notes'] for name in entering]):
-            raise Exception('Couldnt allocate all new pitches')
+
+        # new_harmony = weighted_choice_dict(harmony_options)
+        # new_pitches = [p for p in new_harmony if p not in holdover_pitches]
+
+        # # make sure all new pitches are used
+        # if len(new_pitches) > sum([self.musicians[name]['max_notes'] for name in entering]):
+        #     raise Exception('Couldnt allocate all new pitches')
 
         # n = 0
         while new_pitches:
@@ -341,7 +365,7 @@ class Piece(object):
 
         # Count pitchclasses
         new_pitchclasses = [p for p in harmony if p not in previous_harmony]
-        print 'new_pitchclasses', new_pitchclasses
+        # print 'new_pitchclasses', new_pitchclasses
         # Increment pitch class counter
         for pitch in new_pitchclasses:
             self.pitchclass_count[pitch] += 1
@@ -479,7 +503,7 @@ class Piece(object):
         print
         print exception_counter.most_common()
 
-        notate_score(self.musicians_score_order, self.instrument_names, self.grid)
+        # notate_score(self.musicians_score_order, self.instrument_names, self.grid)
 
 
 if __name__ == '__main__':
