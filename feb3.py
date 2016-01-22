@@ -35,11 +35,9 @@ def try_f(f, args=[], kwargs={}, depth=0):
 
 
 note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-PITCHCLASSES = range(12)
 
 
 def spell(chord):
-    # TODO detect if flats or sharps should be used
     return ' '.join([note_names[p] for p in chord])
 
 
@@ -135,9 +133,11 @@ class Piece(object):
 
         event = {}
         if entering:
+            # Pick a harmony and which instruments will play any new pitches
             # event = self.pick_harmony(entering, harmony_options, holdover_pitches)
             event = try_f(self.pick_harmony, args=[entering, harmony_options, holdover_pitches])
 
+        # If an instrument is stopping, add stop to the event
         for name in exiting:
             event[name] = 'stop'
 
@@ -170,16 +170,11 @@ class Piece(object):
         if not harmony_options:
             raise Exception('Only harmony option is the previous harmony')
 
-        return harmony_options
-
-    def pick_harmony(self, entering, harmony_options, holdover_pitches):
-        pitches = {name: [] for name in entering}
-
-        # pick a harmony
-        # print 'N Harmony Options:', len(harmony_options)
+        # Make weights
         harmony_options.reverse()
         harmony_weights = [int(2 ** n) for n in range(len(harmony_options))]
 
+        # Put options and weights into a dictionary
         harmony_options = {opt: weight for opt, weight in zip(harmony_options, harmony_weights)}
 
         # Reduce repetitions of harmonies
@@ -198,43 +193,44 @@ class Piece(object):
                     h = tuple(h)
                     harmony_options[h] = harmony_options[h] / float(weight)
 
+        return harmony_options
+
+    def pick_harmony(self, entering, harmony_options, holdover_pitches):
+        # The total number of pitches the ensemble of entering musicians can play
         total_max_notes = sum([self.musicians[name]['max_notes'] for name in entering])
-        # print
-        # print 'total_max_notes', total_max_notes
-        # print 'harmony_options', harmony_options
-        new_pitches = ['placeholder'] * (total_max_notes + 1)
-        new_harmony = None
+
+        # Choose a new harmony
+        new_harmony = weighted_choice_dict(harmony_options)
+        new_pitches = [p for p in new_harmony if p not in holdover_pitches]
+
+        # If there are more new pitches than the ensemble of musicians can play
+        # then refine the available options and weights and choose another harmony
         while len(new_pitches) > total_max_notes:
+
+            # So don't allow this harmony to be chosen again
             if new_harmony in harmony_options:
                 del harmony_options[new_harmony]
+
+            # If all the harmonies have been tried and they all have more new
+            # pitches than the ensemble can play, then raise an exception
+            # and try with a new set of harmony options
             if not harmony_options:
-                # print "Exception('All harmony options had more new pitches than instruments could play')"
                 raise Exception('All harmony options had more new pitches than instruments could play')
 
+            # Choose a new harmony from the options
             new_harmony = weighted_choice_dict(harmony_options)
             new_pitches = [p for p in new_harmony if p not in holdover_pitches]
-            # print 'len(new_pitches)', len(new_pitches)
 
-
-        # new_harmony = weighted_choice_dict(harmony_options)
-        # new_pitches = [p for p in new_harmony if p not in holdover_pitches]
-
-        # # make sure all new pitches are used
-        # if len(new_pitches) > sum([self.musicians[name]['max_notes'] for name in entering]):
-        #     raise Exception('Couldnt allocate all new pitches')
-
-        # n = 0
+        # Assign the new pitches to instruments
+        pitches = {name: [] for name in entering}
         while new_pitches:
-            # n += 1
             name = random.choice(entering)
             p = random.choice(new_pitches)
             if len(pitches[name]) < self.musicians[name]['max_notes']:
                 pitches[name].append(p)
                 new_pitches.remove(p)
-            # if n > 1000:
-            #     raise Exception('Couldnt allocate all new pitches')
 
-        # make sure all musicians entering get pitches
+        # Make sure all musicians entering get pitches
         n = 0
         while not all(pitches.values()):
             n += 1
@@ -267,7 +263,7 @@ class Piece(object):
         # Randomly choose from the pitchclasses that have occurred the least
         pcs_by_count = defaultdict(list)
 
-        for pc in PITCHCLASSES:
+        for pc in range(12):
             count = self.pc_counter[pc]
             pcs_by_count[count].append(pc)
 
@@ -357,8 +353,6 @@ class Piece(object):
         self.prev_harmony = self.get_harmony()
         for p in self.prev_harmony:
             self.pc_counter[p] += 1
-
-
 
         # Extend reality :)
         new_reality = self._get_new_reality(event)
@@ -495,25 +489,6 @@ class Piece(object):
 
         return lines
 
-    # def to_csv(self):
-    #     now = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-    #     if not os.path.isdir('exports'):
-    #         os.mkdir('exports')
-    #     with open('exports/two_three_four_{}.csv'.format(now), 'wb') as f:
-    #         writer = csv.writer(f)
-    #         for i, event in enumerate(self.score):
-    #             line_number = i + 1
-    #             if len(event) > 1:
-    #                 writer.writerow([line_number, None, None])
-    #                 line_number = None
-    #             for name in event:
-    #                 action = event[name]
-    #                 if action == 'stop':
-    #                     action = None
-    #                 else:
-    #                     action = spell(event[name])
-    #                 writer.writerow([line_number, name, action])
-
     def reports(self):
         print
         self.report_score()
@@ -523,8 +498,6 @@ class Piece(object):
         self.report_harmonies()
         print
         print exception_counter.most_common()
-
-        # notate_score(self.musicians_score_order, self.instrument_names, self.grid)
 
 
 if __name__ == '__main__':
