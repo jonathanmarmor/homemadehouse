@@ -12,6 +12,7 @@ from harmony_utils import is_allowed, find_all_supersets
 from notate_score import notate_score
 
 
+TEST = False
 MAX_DEPTH = 500
 
 
@@ -20,6 +21,8 @@ exception_counter = Counter()
 
 def try_f(f, args=[], kwargs={}, depth=0):
     """Dumb way to try a random process a bunch of times."""
+    if TEST:
+        return f(*args, **kwargs)
     depth += 1
     try:
         return f(*args, **kwargs)
@@ -40,10 +43,14 @@ def spell(chord):
     return ' '.join([note_names[p] for p in chord])
 
 
-def funny_range(steps):
+def funny_range(steps, top, bottom):
     """get `steps` numbers equally distributed between 2.0 and 1.0"""
-    interval = 1.0 / (steps - 1)
-    return [2.0 - (interval * step) for step in range(steps)]
+    if steps == 0:
+        return []
+    if steps == 1:
+        return [top]
+    interval = (top - bottom) / (steps - 1)
+    return [top - (interval * step) for step in range(steps)]
 
 
 class Piece(object):
@@ -103,8 +110,7 @@ class Piece(object):
 
     def _get_event_generator(self):
         while True:
-            # event = self.get_event()
-            event = try_f(self.get_event)
+            event = try_f(self.make_event)
             if event:
                 self.add_event(event)
             yield event
@@ -118,25 +124,14 @@ class Piece(object):
         while not self.done:
             self.next()
 
-    def get_event(self):
+    def make_event(self):
+        # Choose which musicians will stop and stop playing. Get the set of
+        # pitches that will sustain from the previous state.
         # entering, exiting, holdover_pitches = self.get_entering_exiting_and_holdover_pitches()
         entering, exiting, holdover_pitches = try_f(self.get_entering_exiting_and_holdover_pitches)
 
-        if holdover_pitches:
-            harmony_options = find_all_supersets(holdover_pitches)
-        else:
-            # Choose a new pitch
-            # print
-            # print 'no holdovers. pc_counter:', self.pc_counter
-            new_seed = self.get_new_seed()
-            # print 'new seed', new_seed
-            harmony_options = find_all_supersets([new_seed])
-
-        if self.prev_harmony in harmony_options:
-            harmony_options.remove(self.prev_harmony)
-
-        if not harmony_options:
-            raise Exception('Only harmony option is the previous harmony')
+        # Get harmony options
+        harmony_options = self.get_harmony_options(holdover_pitches)
 
         event = {}
         if entering:
@@ -158,6 +153,25 @@ class Piece(object):
 
         return entering, exiting, holdover_pitches
 
+    def get_harmony_options(self, holdover_pitches):
+        if holdover_pitches:
+            harmony_options = find_all_supersets(holdover_pitches)
+        else:
+            # Choose a new pitch
+            # print
+            # print 'no holdovers. pc_counter:', self.pc_counter
+            new_seed = self.get_new_seed()
+            # print 'new seed', new_seed
+            harmony_options = find_all_supersets([new_seed])
+
+        if self.prev_harmony in harmony_options:
+            harmony_options.remove(self.prev_harmony)
+
+        if not harmony_options:
+            raise Exception('Only harmony option is the previous harmony')
+
+        return harmony_options
+
     def pick_harmony(self, entering, harmony_options, holdover_pitches):
         pitches = {name: [] for name in entering}
 
@@ -176,7 +190,7 @@ class Piece(object):
 
         # Reduce repetitions of pitch classes
         count_of_pitchclasses_used = len(self.pitchclass_count)
-        weights_to_reduce = funny_range(count_of_pitchclasses_used)
+        weights_to_reduce = funny_range(count_of_pitchclasses_used, 4.0, 1.0)
         for pc_and_count, weight in zip(self.pitchclass_count.most_common(), weights_to_reduce):
             pc, count = pc_and_count
             for h in harmony_options:
@@ -409,6 +423,13 @@ class Piece(object):
 
     # Reporting, displaying
 
+    def notate(self):
+        notate_score(
+            self.musicians_score_order,
+            self.instrument_names,
+            self.grid
+        )
+
     def report_score(self):
         for i, event in enumerate(self.score):
             print i + 1
@@ -509,9 +530,16 @@ class Piece(object):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--events', '-e', default=40, help='The number of events to make.', type=int)
+    parser.add_argument('--test', '-t', action='store_true')
+    parser.add_argument('--notate', '-n', action='store_true')
     args = parser.parse_args()
 
+    if args.test:
+        TEST = True
+
     p = Piece(n_events=args.events)
-    # p.test()
     p.run()
     p.reports()
+
+    if args.notate:
+        p.notate()
