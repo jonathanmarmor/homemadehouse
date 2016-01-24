@@ -242,7 +242,7 @@ class Piece(object):
                 raise Exception('Couldnt fill all entering instruments')
 
         # Add some extra notes
-        if random.random() < 0.40:
+        if random.random() < 0.7:
             headroom = {name: self.musicians[name]['max_notes'] - len(pitches[name]) for name in entering}
             for name in headroom:
                 pitch_options = [p for p in new_harmony if p not in pitches[name]]
@@ -327,12 +327,19 @@ class Piece(object):
             if len(eligible) == 1:
                 changing = eligible[:]
             else:
-                n_musicians_opts = range(1, len(eligible) + 1)
-                n_musicians_weights = list(reversed([2 ** n for n in n_musicians_opts]))
-                n_musicians_weights[0] = n_musicians_weights[1]
-                num_changing = weighted_choice_lists(n_musicians_opts, n_musicians_weights)
+                num_changing = self.choose_number_changing(eligible)
                 changing = random.sample(eligible, num_changing)
         return changing
+
+    def choose_number_changing(self, eligible):
+        if self.n == 2:
+            return 1
+
+        max_n_musicians = len(eligible) + 1
+        n_musicians_opts = range(1, max_n_musicians)
+        n_musicians_weights = list(reversed([2 ** n for n in n_musicians_opts]))
+        n_musicians_weights[0] = n_musicians_weights[1]
+        return weighted_choice_lists(n_musicians_opts, n_musicians_weights)
 
     def add_event(self, event):
         self.score.append(event)
