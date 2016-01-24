@@ -318,7 +318,7 @@ class Piece(object):
                 changing = random.sample(playing, num_changing)
         else:
             not_eligible = [name for name in self.prev_event if self.prev_event[name] != 'stop']
-            if 2 < self.n < 5:
+            if 1 < self.n < 4:
                 not_eligible.append('Jessica')
 
             if len(not_eligible) == len(self.musicians):
@@ -335,10 +335,8 @@ class Piece(object):
         return changing
 
     def add_event(self, event):
-
         self.score.append(event)
         self.n += 1
-
         self.prev_event = event
 
         self.prev_state = {}
