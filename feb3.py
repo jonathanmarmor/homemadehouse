@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
+import os
+import datetime
 import random
-# import datetime
-# import csv
-# import os
 from collections import Counter, defaultdict
 import argparse
 
@@ -42,7 +41,7 @@ def spell(chord):
 
 
 def funny_range(steps, top, bottom):
-    """get `steps` numbers equally distributed between 2.0 and 1.0"""
+    """get `steps` numbers equally distributed between `top` and `bottom`"""
     if steps == 0:
         return []
     if steps == 1:
@@ -55,6 +54,7 @@ class Piece(object):
     def __init__(self, n_events=40):
         self.n_events = n_events
         self.done = False
+        self.n = 0
 
         self.musicians = {
             'Andrea': {
@@ -185,7 +185,7 @@ class Piece(object):
 
         # Reduce repetitions of pitch classes
         count_of_pitchclasses_used = len(self.pitchclass_count)
-        weights_to_reduce = funny_range(count_of_pitchclasses_used, 4.0, 1.0)
+        weights_to_reduce = funny_range(count_of_pitchclasses_used, 8.0, 1.0)
         for pc_and_count, weight in zip(self.pitchclass_count.most_common(), weights_to_reduce):
             pc, count = pc_and_count
             for h in harmony_options:
@@ -294,6 +294,12 @@ class Piece(object):
         return entering, exiting
 
     def get_changing_musicians(self):
+        if self.n == 0:
+            return ['Andrea', 'Jessica', 'Kristin', 'Rachel']
+
+        if self.n == 1:
+            return ['Andrea', 'Kristin', 'Rachel']
+
         n_events_remaining = self.n_events - len(self.score)
         if n_events_remaining <= len(self.musicians):
             # End game, everyone needs to stop
@@ -312,6 +318,9 @@ class Piece(object):
                 changing = random.sample(playing, num_changing)
         else:
             not_eligible = [name for name in self.prev_event if self.prev_event[name] != 'stop']
+            if 2 < self.n < 5:
+                not_eligible.append('Jessica')
+
             if len(not_eligible) == len(self.musicians):
                 not_eligible.remove(random.choice(not_eligible))
             eligible = [name for name in self.musicians if name not in not_eligible]
@@ -328,6 +337,7 @@ class Piece(object):
     def add_event(self, event):
 
         self.score.append(event)
+        self.n += 1
 
         self.prev_event = event
 
@@ -489,6 +499,25 @@ class Piece(object):
 
         return lines
 
+    def report_reality(self):
+        print ''.join(['{:<8}'.format(name) for name in self.musicians_score_order])
+        for item in self.reality:
+            print ''.join(['{:<8}'.format(' '.join([str(pc) for pc in item.get(name, [])])) for name in self.musicians_score_order])
+
+    # def make_notation_2015(self):
+    #     timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    #     directory_path = 'output/house_{}'.format(timestamp)
+    #     os.mkdir(directory_path)
+
+    #     for i, event in enumerate(self.score):
+    #         i += 1
+    #         for name in [n for n in self.musicians_score_order if n in event]:
+    #             action = event[name]
+    #             if action != 'stop':
+    #                 action = spell(event[name])
+    #             print '  {:>10} {}'.format(name, action)
+    #         print
+
     def reports(self):
         print
         self.report_score()
@@ -498,6 +527,10 @@ class Piece(object):
         self.report_harmonies()
         print
         print exception_counter.most_common()
+
+        self.report_reality()
+
+        # self.make_notation_2015()
 
 
 if __name__ == '__main__':
