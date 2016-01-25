@@ -198,7 +198,7 @@ class Piece(object):
 
         # Reduce repetitions of pitch classes
         count_of_pitchclasses_used = len(self.pitchclass_count)
-        weights_to_reduce = funny_range(count_of_pitchclasses_used, 8.0, 1.0)
+        weights_to_reduce = funny_range(count_of_pitchclasses_used, 12.0, 4.0)
         for pc_and_count, weight in zip(self.pitchclass_count.most_common(), weights_to_reduce):
             pc, count = pc_and_count
             for h in harmony_options:
