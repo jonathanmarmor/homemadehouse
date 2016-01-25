@@ -5,10 +5,12 @@ import datetime
 import random
 from collections import Counter, defaultdict
 import argparse
+import json
 
 from utils import weighted_choice_lists, weighted_choice_dict
 from harmony_utils import is_allowed, find_all_supersets
 from notate_score import notate_score
+from write_notation_cell import write_notation_cell
 
 
 TEST = False
@@ -55,26 +57,34 @@ class Piece(object):
         self.n_events = n_events
         self.done = False
         self.n = 0
+        self.exception_counter = exception_counter
+
+        self.timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+        self.path = 'output/house_{}'.format(self.timestamp)
+        os.mkdir(self.path)
+        self.backup_path = os.path.join(self.path, 'backup.json')
+        self.dont_save = ['_event_generator', 'prev_event', 'n', 'prev_harmony', 'prev_state', ]
+        self.counters = ['pc_counter', 'pitchclass_count', 'exception_counter']
 
         self.musicians = {
             'Andrea': {
-                'instrument': 'flute',
+                'instrument': 'Flute',
                 'max_notes': 1
             },
             'Jessica': {
-                'instrument': 'voice',
+                'instrument': 'Voice',
                 'max_notes': 1
             },
             'Kristin': {
-                'instrument': 'oboe',
+                'instrument': 'Oboe',
                 'max_notes': 1
             },
             'Rachel': {
-                'instrument': 'cello',
+                'instrument': 'Cello',
                 'max_notes': 2
             },
             'Trevor': {
-                'instrument': 'piano',
+                'instrument': 'Piano',
                 'max_notes': 10
             }
         }
@@ -121,6 +131,9 @@ class Piece(object):
             n_events = self.n_events
         while not self.done:
             self.next()
+
+        print 'SAVING TO {}'.format(self.backup_path)
+        self.save()
 
     def make_event(self):
         # Choose which musicians will stop and stop playing. Get the set of
@@ -432,7 +445,7 @@ class Piece(object):
 
     # Reporting, displaying
 
-    def notate(self):
+    def notate_raw(self):
         notate_score(
             self.musicians_score_order,
             self.instrument_names,
@@ -440,13 +453,14 @@ class Piece(object):
         )
 
     def report_score(self):
-        for i, event in enumerate(self.score):
-            print i + 1
-            for name in sorted(event.keys()):
+        for index, event in enumerate(self.score):
+            print index + 1
+            for name in [n for n in self.musicians_score_order if n in event]:
                 action = event[name]
                 if action != 'stop':
                     action = spell(event[name])
-                print '  {:>10} {}'.format(name, action)
+                instrument = self.musicians[name]['instrument']
+                print '  {:>6} {}'.format(instrument, action)
             print
 
     def report_rhythm(self):
@@ -509,19 +523,29 @@ class Piece(object):
         for item in self.reality:
             print ''.join(['{:<8}'.format(' '.join([str(pc) for pc in item.get(name, [])])) for name in self.musicians_score_order])
 
-    # def make_notation_2015(self):
-    #     timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    #     directory_path = 'output/house_{}'.format(timestamp)
-    #     os.mkdir(directory_path)
+    def pngs(self):
+        for event_index, event in enumerate(self.score):
+            if not any([True for n in event if event[n] != 'stop']):
+                continue
 
-    #     for i, event in enumerate(self.score):
-    #         i += 1
-    #         for name in [n for n in self.musicians_score_order if n in event]:
-    #             action = event[name]
-    #             if action != 'stop':
-    #                 action = spell(event[name])
-    #             print '  {:>10} {}'.format(name, action)
-    #         print
+            event_index += 1
+            music = []
+
+            for name in [n for n in self.musicians_score_order if n in event]:
+                action = event[name]
+                if action != 'stop':
+                    musician = {
+                        'instrument': self.musicians[name]['instrument'],
+                        'music': [
+                            {
+                                'pitches': action,
+                                'duration': 4.0
+                            }
+                        ],
+                    }
+                    music.append(musician)
+
+            write_notation_cell(music, self.path, event_index)
 
     def reports(self):
         print
@@ -535,14 +559,34 @@ class Piece(object):
 
         self.report_reality()
 
-        # self.make_notation_2015()
+    def save(self):
+        d = {key: self.__dict__[key] for key in self.__dict__ if key not in self.dont_save}
+        for key in self.counters:
+            d[key] = list(d[key].elements())
+        json_string = json.dumps(d)
+
+        with open(self.backup_path, 'w') as f:
+            f.write(json_string)
+
+    def load(self, path):
+        backup_path = os.path.join(path, 'backup.json')
+        with open(backup_path, 'r') as f:
+            json_string = f.read()
+        d = json.loads(json_string)
+
+        for key in d:
+            if key in self.counters:
+                self.__dict__[key] = Counter(d[key])
+            else:
+                self.__dict__[key] = d[key]
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--events', '-e', default=40, help='The number of events to make.', type=int)
     parser.add_argument('--test', '-t', action='store_true')
-    parser.add_argument('--notate', '-n', action='store_true')
+    parser.add_argument('--notate_raw', '-r', action='store_true')
+    parser.add_argument('--pngs', '-p', action='store_true')
     args = parser.parse_args()
 
     if args.test:
@@ -552,5 +596,8 @@ if __name__ == '__main__':
     p.run()
     p.reports()
 
-    if args.notate:
-        p.notate()
+    if args.pngs:
+        p.pngs()
+
+    if args.notate_raw:
+        p.notate_raw()
