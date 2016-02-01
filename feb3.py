@@ -53,7 +53,7 @@ def funny_range(steps, top, bottom):
 
 
 class Piece(object):
-    def __init__(self, n_events=40):
+    def __init__(self, n_events=40, quentin=False):
         self.n_events = n_events
         self.done = False
         self.n = 0
@@ -88,7 +88,6 @@ class Piece(object):
                 'max_notes': 10
             }
         }
-
         self.musicians_score_order = [
             'Jessica',
             'Andrea',
@@ -96,6 +95,57 @@ class Piece(object):
             'Trevor',
             'Rachel'
         ]
+        self.soloist = 'Jessica'
+        self.non_soloist_starters = [
+            'Andrea',
+            'Kristin',
+            'Rachel'
+        ]
+
+        if quentin:
+            self.musicians = {
+                'Quentin': {
+                    'instrument': 'Organ',
+                    'max_notes': 10
+                },
+                'Nicola': {
+                    'instrument': 'Piano',
+                    'max_notes': 10
+                },
+                'Kristin': {
+                    'instrument': 'Oboe',
+                    'max_notes': 1
+                },
+                'Singer': {
+                    'instrument': 'Percussion',
+                    'max_notes': 1
+                },
+                'Marmor': {
+                    'instrument': 'Percussion',
+                    'max_notes': 1
+                },
+                'Andreas': {
+                    'instrument': 'Guitar',
+                    'max_notes': 3
+                }
+            }
+            self.musicians_score_order = [
+                'Kristin',
+                'Andreas',
+                'Quentin',
+                'Nicola',
+                'Singer',
+                'Marmor'
+            ]
+            self.soloist = 'Kristin'
+            self.non_soloist_starters = [
+                'Andreas',
+                'Quentin',
+                'Nicola',
+                'Singer',
+                'Marmor'
+            ]
+
         self.instrument_names = [self.musicians[name]['instrument'] for name in self.musicians_score_order]
 
         self.prev_state = {name: [] for name in self.musicians}
@@ -308,10 +358,10 @@ class Piece(object):
 
     def get_changing_musicians(self):
         if self.n == 0:
-            return ['Andrea', 'Jessica', 'Kristin', 'Rachel']
+            return self.musicians_score_order[:]
 
         if self.n == 1:
-            return ['Andrea', 'Kristin', 'Rachel']
+            return self.non_soloist_starters
 
         n_events_remaining = self.n_events - len(self.score)
         if n_events_remaining <= len(self.musicians):
@@ -332,7 +382,7 @@ class Piece(object):
         else:
             not_eligible = [name for name in self.prev_event if self.prev_event[name] != 'stop']
             if 1 < self.n < 4:
-                not_eligible.append('Jessica')
+                not_eligible.append(self.soloist)
 
             if len(not_eligible) == len(self.musicians):
                 not_eligible.remove(random.choice(not_eligible))
@@ -459,8 +509,8 @@ class Piece(object):
                 action = event[name]
                 if action != 'stop':
                     action = spell(event[name])
-                instrument = self.musicians[name]['instrument']
-                print '  {:>6} {}'.format(instrument, action)
+                # instrument = self.musicians[name]['instrument']
+                print '  {:>12} {}'.format(name, action)
             print
 
     def report_rhythm(self):
@@ -587,12 +637,13 @@ if __name__ == '__main__':
     parser.add_argument('--test', '-t', action='store_true')
     parser.add_argument('--notate_raw', '-r', action='store_true')
     parser.add_argument('--pngs', '-p', action='store_true')
+    parser.add_argument('--quentin', '-q', action='store_true')
     args = parser.parse_args()
 
     if args.test:
         TEST = True
 
-    p = Piece(n_events=args.events)
+    p = Piece(n_events=args.events, quentin=args.quentin)
     p.run()
     p.reports()
 
