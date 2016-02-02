@@ -8,7 +8,8 @@ import argparse
 import json
 
 from utils import weighted_choice_lists, weighted_choice_dict
-from harmony_utils import is_allowed, find_all_supersets
+from harmony_utils import (is_allowed, find_all_supersets,
+    get_all_transpositions, allowed_chord_types)
 from notate_score import notate_score
 from write_notation_cell import write_notation_cell
 
@@ -59,7 +60,7 @@ class Piece(object):
         self.n = 0
         self.exception_counter = exception_counter
 
-        self.timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+        self.timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         self.path = 'output/house_{}'.format(self.timestamp)
         os.mkdir(self.path)
         self.backup_path = os.path.join(self.path, 'backup.json')
@@ -234,7 +235,7 @@ class Piece(object):
 
         # Make weights
         harmony_options.reverse()
-        harmony_weights = [int(2 ** n) for n in range(len(harmony_options))]
+        harmony_weights = [int(1.9 ** n) for n in range(len(harmony_options))]
 
         # Put options and weights into a dictionary
         harmony_options = {opt: weight for opt, weight in zip(harmony_options, harmony_weights)}
@@ -583,10 +584,19 @@ class Piece(object):
         for k, n in c.most_common():
             print n, k
 
-        from harmony_utils import get_all_transpositions, allowed_chord_types
-        # Count Chord Types
+        print
+        chord_types_counter = self.count_chord_types(self.harmonies)
+        print 'Number of different chord types: ', len(chord_types_counter)
+        for chord_type, count in chord_types_counter.most_common():
+            print '{:<5} {}'.format(str(count), str(chord_type))
+
+        return lines
+
+    def count_chord_types(self, chords):
+        [c.sort() for c in chords]
+        chords = [tuple(c) for c in chords]
+
         chord_type_counter = Counter()
-        chords = c.keys()
 
         for chord in chords:
             transpositions = get_all_transpositions(chord)
@@ -594,12 +604,8 @@ class Piece(object):
                 if t in allowed_chord_types:
                     chord_type_counter[t] += 1
                     continue
-        print
-        print 'Number of different chord types: ', len(chord_type_counter)
-        for k, n in chord_type_counter.most_common():
-            print n, k
 
-        return lines
+        return chord_type_counter
 
     def report_reality(self):
         print ''.join(['{:<8}'.format(name) for name in self.musicians_score_order])
