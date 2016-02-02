@@ -186,9 +186,8 @@ class Piece(object):
         self.save()
 
     def make_event(self):
-        # Choose which musicians will stop and stop playing. Get the set of
+        # Choose which musicians will start and stop playing. Get the set of
         # pitches that will sustain from the previous state.
-        # entering, exiting, holdover_pitches = self.get_entering_exiting_and_holdover_pitches()
         entering, exiting, holdover_pitches = try_f(self.get_entering_exiting_and_holdover_pitches)
 
         # Get harmony options
@@ -358,7 +357,7 @@ class Piece(object):
 
     def get_changing_musicians(self):
         if self.n == 0:
-            return self.musicians_score_order[:]
+            return self.non_soloist_starters + [self.soloist]
 
         if self.n == 1:
             return self.non_soloist_starters
@@ -380,23 +379,57 @@ class Piece(object):
                 num_changing = weighted_choice_lists(n_musicians_opts, n_musicians_weights)
                 changing = random.sample(playing, num_changing)
         else:
-            not_eligible = [name for name in self.prev_event if self.prev_event[name] != 'stop']
+            # If an instrument started in the last event then it can only rarely
+            # change in this event
+            not_eligible = [name for name in self.prev_event if self.prev_event[name] != 'stop' and random.random() < .85]
+
+            # The soloist should play through the first three events
             if 1 < self.n < 4:
                 not_eligible.append(self.soloist)
 
-            if len(not_eligible) == len(self.musicians):
-                not_eligible.remove(random.choice(not_eligible))
-            eligible = [name for name in self.musicians if name not in not_eligible]
+            if self.n > 3:
+                for name in self.musicians_score_order:
+
+                    # If the instrument just stopped, make it less likely to
+                    # start now
+                    if self.score[-1].get(name) is 'stop' and \
+                            name not in not_eligible and \
+                            random.random() < .75:
+                        not_eligible.append(name)
+
+                    # If the instrument started then continued, make it less
+                    # likely to start now.
+                    if name not in self.score[-1] and \
+                            self.score[-2].get(name) is not None and \
+                            self.score[-2].get(name) is not 'stop' and \
+                            name not in not_eligible and \
+                            random.random() < .5:
+                        not_eligible.append(name)
+
+                    # If the instrument didn't change (was resting or playing)
+                    # in the last event, half the time they are inelligible
+                    if name not in self.score[-1] and \
+                            name not in not_eligible and \
+                            random.random() < .5:
+                        not_eligible.append(name)
+
+            # if len(not_eligible) == len(self.musicians):
+            #     # No one is eligible, so randomly make someone eligible.
+            #     print 'len(not_eligible) == len(self.musicians)'
+            #     not_eligible.remove(random.choice(not_eligible))
+
+            eligible = [name for name in self.musicians_score_order if name not in not_eligible]
             if len(eligible) == 1:
-                changing = eligible[:]
+                changing = eligible
             else:
                 num_changing = self.choose_number_changing(eligible)
                 changing = random.sample(eligible, num_changing)
+
         return changing
 
     def choose_number_changing(self, eligible):
         if self.n == 2:
-            return 1
+            return random.choice([1, 2])
 
         max_n_musicians = len(eligible) + 1
         n_musicians_opts = range(1, max_n_musicians)
@@ -514,7 +547,7 @@ class Piece(object):
             print
 
     def report_rhythm(self):
-        for name in self.grid:
+        for name in self.musicians_score_order:
             line = []
             for event in self.grid[name]:
                 if event == [] or event == 'stop':

@@ -9,18 +9,18 @@ def get_all_transpositions(chord):
 
 allowed_chord_types = [
     # Feb3 chord types + Billboard/McGill chord types that happen > 1 in 1000
-    # Preferring original Feb3 order
+    # Preferring original Feb3 order, with a little manual reordering
+    (0, 4, 7),
+    (0, 3, 7),
     (0,),
     (0, 5),
     (0, 4),
-    (0, 4, 7),
-    (0, 3, 7),
-    (0, 3),
     (0, 5, 7),
+    (0, 3),
+    (0, 4, 7, 10),
     (0, 3, 5),
     (0, 2),
     (0, 2, 5),
-    (0, 4, 7, 10),
     (0, 3, 7, 10),
     (0, 2, 4, 7),
     (0, 3, 5, 7),
