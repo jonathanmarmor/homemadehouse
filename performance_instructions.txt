@@ -1,0 +1,32 @@
+How to read the score:
+1. Read from top to bottom. Times goes from top to bottom.
+2. Each number in the left column is an event, performed by the instruments listed.
+3. The events are performed sequentially.
+4. If your name is in an event, it's your job to decide how long to wait after the last event before performing your event.
+5. If more than one person is in an event, you need to collaboratively decide how long to wait, then cue each other to perform the event at exactly the same moment.
+6. If there are pitches listed next to your name, that means you should start playing those pitches when the event is cued.
+7. If there are no pitches next to your name, that means when the event is cued you should stop playing whatever you were playing
+
+How to play the pitches:
+1. Choose a single voicing for each set of pitches in events where you start playing pitches.
+2. Voicings should be "lush" with lots of unison and octave doubling, open fifths, major 10ths, and with spacing between pitches generally wider the lower the register. Bass pitches should be used extremely rarely -- only one (if that) bass pitch should be played in the whole ensemble at any given moment.
+3. Rhythm: You should play your note or chord as one discrete event with a start and an end. You should then repeat your note with as similar as possible a volume and articulation. Repetitions should have silence between them and should be slow enough that a sense of pulse can't be felt from your part. Be sure that your tempo isn't entrained with another performer's tempo. You should continue this repetition until an event happens in which you are instructed to stop. While playing, you'll need to follow along with the actions on the score so you know when to stop.
+
+Overall:
+1. Volumes of all instruments should be as balanced as possible.
+2. Not too loud or too quiet.
+3. Use "lush" voicings.
+4. Octave duplication is encouraged.
+5. Use bass notes sparingly, give them room to breath, never let them sound muddy.
+6. All the notes of a chord (within one instrument) must be attacked together or very close together.
+7. Let chords sustain at least one second.
+8. Let notes decay or stop them all together.
+9. Leave at least one second of silence before you attack the chord again.
+10. Piano, guitar, mandolin, etc may attack the chord again before it has completely faded.
+11. Organs may sustain continuously without reattacking.
+12. Rhythm of wind and bowed string instruments should be based on the breath.
+13. Your pulse should be loose, slow, and unrelated to other pulses.
+14. Repetitions of your note or chord should sound the same every time you play it.
+15. Each repetition of the note or chord should always be about the same duration.
+16. The gaps in between notes or chords should always be about the same duration.
+17. Relax. Let things settle before moving on to the next event. This is the responsibility of the person who does the next event.
