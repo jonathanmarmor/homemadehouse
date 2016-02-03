@@ -380,47 +380,12 @@ class Piece(object):
                 num_changing = weighted_choice_lists(n_musicians_opts, n_musicians_weights)
                 changing = random.sample(playing, num_changing)
         else:
-            # If an instrument started in the last event then it can only rarely
-            # change in this event
-            not_eligible = [name for name in self.prev_event if self.prev_event[name] != 'stop' and random.random() < .85]
 
-            # The soloist should play through the first three events
-            if 1 < self.n < 4:
-                not_eligible.append(self.soloist)
+            eligible = self.get_eligible_to_change()
 
-            if self.n > 3:
-                for name in self.musicians_score_order:
-
-                    # If the instrument just stopped, make it less likely to
-                    # start now
-                    if self.score[-1].get(name) is 'stop' and \
-                            name not in not_eligible and \
-                            random.random() < .75:
-                        not_eligible.append(name)
-
-                    # If the instrument started then continued, make it less
-                    # likely to start now.
-                    if name not in self.score[-1] and \
-                            self.score[-2].get(name) is not None and \
-                            self.score[-2].get(name) is not 'stop' and \
-                            name not in not_eligible and \
-                            random.random() < .5:
-                        not_eligible.append(name)
-
-                    # If the instrument didn't change (was resting or playing)
-                    # in the last event, half the time they are inelligible
-                    if name not in self.score[-1] and \
-                            name not in not_eligible and \
-                            random.random() < .5:
-                        not_eligible.append(name)
-
-            if len(not_eligible) == len(self.musicians):
+            if len(eligible) == 0:
                 raise Exception('No one is eligible to change.')
-                # # No one is eligible, so randomly make someone eligible.
-                # print 'len(not_eligible) == len(self.musicians)'
-                # not_eligible.remove(random.choice(not_eligible))
 
-            eligible = [name for name in self.musicians_score_order if name not in not_eligible]
             if len(eligible) == 1:
                 changing = eligible
             else:
@@ -428,6 +393,44 @@ class Piece(object):
                 changing = random.sample(eligible, num_changing)
 
         return changing
+
+    def get_eligible_to_change(self, depth=10):
+        # If an instrument started in the last event then it can only rarely
+        # change in this event
+        not_eligible = [name for name in self.prev_event if self.prev_event[name] != 'stop' and random.random() < .85]
+
+        # The soloist should play through the first three events
+        if 1 < self.n < 4:
+            not_eligible.append(self.soloist)
+
+        if self.n > 3:
+            for name in self.musicians_score_order:
+
+                # If the instrument just stopped, make it less likely to
+                # start now
+                if self.score[-1].get(name) is 'stop' and \
+                        name not in not_eligible and \
+                        random.random() < .75:
+                    not_eligible.append(name)
+
+                # If the instrument started then continued, make it less
+                # likely to start now.
+                if name not in self.score[-1] and \
+                        self.score[-2].get(name) is not None and \
+                        self.score[-2].get(name) is not 'stop' and \
+                        name not in not_eligible and \
+                        random.random() < .5:
+                    not_eligible.append(name)
+
+                # If the instrument didn't change (was resting or playing)
+                # in the last event, half the time they are inelligible
+                if name not in self.score[-1] and \
+                        name not in not_eligible and \
+                        random.random() < .5:
+                    not_eligible.append(name)
+
+        eligible = [name for name in self.musicians_score_order if name not in not_eligible]
+        return eligible
 
     def choose_number_changing(self, eligible):
         if self.n == 2:
@@ -530,7 +533,7 @@ class Piece(object):
 
     # Reporting, displaying
 
-    def notate_raw(self):
+    def notate_harmonies(self):
         notate_score(
             self.musicians_score_order,
             self.instrument_names,
@@ -673,11 +676,40 @@ class Piece(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--events', '-e', default=40, help='The number of events to make.', type=int)
     parser.add_argument('--test', '-t', action='store_true')
-    parser.add_argument('--notate_raw', '-r', action='store_true')
-    parser.add_argument('--pngs', '-p', action='store_true')
-    parser.add_argument('--quentin', '-q', action='store_true')
+
+    # Options for what the music will be like
+    parser.add_argument('--events', '-e', default=40,
+        help='The number of events to make.', type=int)
+
+    parser.add_argument('--quentin', '-q', action='store_true',
+        help='Use Quentin band instrumentation rather than the default Sonic Lib ensemble')
+
+    # Output options
+    parser.add_argument('--notate_harmonies', '-n', action='store_true',
+        help='Open harmonies in Sibelius')
+
+    parser.add_argument('--pngs', '-p', action='store_true',
+        help='Make PNG images of notation of each cell')
+
+    parser.add_argument('--score', '-s', action='store_true',
+        help='Print the score to the screen')
+
+    parser.add_argument('--rhythm', '-r', action='store_true',
+        help='Print rhythm report to the screen')
+
+    parser.add_argument('--harmonies', '-H', action='store_true',
+        help='Make PNG images of notation of each cell')
+
+    parser.add_argument('--exceptions', '-x', action='store_true',
+        help='Print exceptions report to the screen')
+
+    parser.add_argument('--reality', '-l', action='store_true',
+        help='Print "reality" report to the screen')
+
+    parser.add_argument('--all-reports', '-a', action='store_true',
+        help='Print all reports to the screen')
+
     args = parser.parse_args()
 
     if args.test:
@@ -685,10 +717,36 @@ if __name__ == '__main__':
 
     p = Piece(n_events=args.events, quentin=args.quentin)
     p.run()
-    p.reports()
 
     if args.pngs:
         p.pngs()
 
-    if args.notate_raw:
-        p.notate_raw()
+    if args.notate_harmonies:
+        p.notate_harmonies()
+
+    if args.score:
+        p.report_score()
+        print
+
+    if args.rhythm:
+        p.report_rhythm()
+        print
+
+    if args.harmonies:
+        p.report_harmonies()
+        print
+
+    if args.exceptions:
+        print
+        print 'Exceptions Report'
+        for exception, count in exception_counter.most_common():
+            print count, exception
+        print
+
+    if args.reality:
+        p.report_reality()
+        print
+
+    if args.all_reports:
+        p.reports()
+        print
