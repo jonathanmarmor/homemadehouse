@@ -414,10 +414,11 @@ class Piece(object):
                             random.random() < .5:
                         not_eligible.append(name)
 
-            # if len(not_eligible) == len(self.musicians):
-            #     # No one is eligible, so randomly make someone eligible.
-            #     print 'len(not_eligible) == len(self.musicians)'
-            #     not_eligible.remove(random.choice(not_eligible))
+            if len(not_eligible) == len(self.musicians):
+                raise Exception('No one is eligible to change.')
+                # # No one is eligible, so randomly make someone eligible.
+                # print 'len(not_eligible) == len(self.musicians)'
+                # not_eligible.remove(random.choice(not_eligible))
 
             eligible = [name for name in self.musicians_score_order if name not in not_eligible]
             if len(eligible) == 1:
