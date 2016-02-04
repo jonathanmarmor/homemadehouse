@@ -183,6 +183,8 @@ class Piece(object):
         while not self.done:
             self.next()
 
+        self.count_gaps()
+
         print 'SAVING TO {}'.format(self.backup_path)
         self.save()
 
