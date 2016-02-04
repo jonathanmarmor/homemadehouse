@@ -167,6 +167,9 @@ class Piece(object):
 
         self._event_generator = self._get_event_generator()
 
+    def __repr__(self):
+        return self.reports()
+
     def _get_event_generator(self):
         while True:
             event = try_f(self.make_event)
@@ -688,9 +691,13 @@ class Piece(object):
         print
         self.report_harmonies()
         print
-        print exception_counter.most_common()
+        print 'Exceptions Report'
+        for exception, count in exception_counter.most_common():
+            print count, exception
+        print
 
         self.report_reality()
+        return ''
 
     def save(self):
         d = {key: self.__dict__[key] for key in self.__dict__ if key not in self.dont_save}
@@ -712,6 +719,15 @@ class Piece(object):
                 self.__dict__[key] = Counter(d[key])
             else:
                 self.__dict__[key] = d[key]
+
+
+def get_piece(n_events=40, quentin=False):
+    while True:
+        p = Piece(n_events=n_events, quentin=quentin)
+        p.run()
+        if p.gaps:
+            break
+    return p
 
 
 if __name__ == '__main__':
@@ -755,11 +771,7 @@ if __name__ == '__main__':
     if args.test:
         TEST = True
 
-    while True:
-        p = Piece(n_events=args.events, quentin=args.quentin)
-        p.run()
-        if p.gaps:
-            break
+    p = get_piece(n_events=args.events, quentin=args.quentin)
 
     if args.pngs:
         p.pngs()
