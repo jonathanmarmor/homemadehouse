@@ -303,11 +303,17 @@ class Piece(object):
                     pitches[name].append(p)
                     new_pitches.remove(p)
                     continue
-
-            p = random.choice(new_pitches)
-            if len(pitches[name]) < self.musicians[name]['max_notes']:
-                pitches[name].append(p)
-                new_pitches.remove(p)
+                else:
+                    if len(entering) == 1:
+                        p = random.choice(new_pitches)
+                        if len(pitches[name]) < self.musicians[name]['max_notes']:
+                            pitches[name].append(p)
+                            new_pitches.remove(p)
+            else:
+                p = random.choice(new_pitches)
+                if len(pitches[name]) < self.musicians[name]['max_notes']:
+                    pitches[name].append(p)
+                    new_pitches.remove(p)
 
         # Make sure all musicians entering get pitches
         n = 0
@@ -324,14 +330,26 @@ class Piece(object):
         if random.random() < 0.7:
             headroom = {name: self.musicians[name]['max_notes'] - len(pitches[name]) for name in entering}
             for name in headroom:
-                pitch_options = [p for p in new_harmony if p not in pitches[name]]
-                upper = min([len(pitch_options), headroom[name]])
-                if upper:
-                    n_pitches = 1
-                    if upper > 1:
-                        n_pitches = random.randint(1, upper)
-                    ps = random.sample(pitch_options, n_pitches)
-                    pitches[name].extend(ps)
+
+                # When cello plays two notes, it should be a fifth
+                # TODO: Make work when Rachel isn't playing :)
+                if name is 'Rachel' and len(pitches[name]) == 1:
+                    existing_pitch = pitches[name][0]
+                    # Fifths
+                    target_pitches = [(existing_pitch + 7) % 12, (existing_pitch + 5) % 12]
+                    target_pitches = [t for t in target_pitches if t in new_harmony]
+                    if target_pitches:
+                        p = random.choice(target_pitches)
+                        pitches[name].append(p)
+                else:
+                    pitch_options = [p for p in new_harmony if p not in pitches[name]]
+                    upper = min([len(pitch_options), headroom[name]])
+                    if upper:
+                        n_pitches = 1
+                        if upper > 1:
+                            n_pitches = random.randint(1, upper)
+                        ps = random.sample(pitch_options, n_pitches)
+                        pitches[name].extend(ps)
 
         for name in pitches:
             pitches[name].sort()
@@ -737,8 +755,11 @@ if __name__ == '__main__':
     if args.test:
         TEST = True
 
-    p = Piece(n_events=args.events, quentin=args.quentin)
-    p.run()
+    while True:
+        p = Piece(n_events=args.events, quentin=args.quentin)
+        p.run()
+        if p.gaps:
+            break
 
     if args.pngs:
         p.pngs()
