@@ -288,6 +288,20 @@ class Piece(object):
         pitches = {name: [] for name in entering}
         while new_pitches:
             name = random.choice(entering)
+
+            # When cello plays two notes, it should be a fifth
+            # TODO: Make work when Rachel isn't playing :)
+            if name is 'Rachel' and len(pitches[name]) == 1:
+                existing_pitch = pitches[name][0]
+                # Fifths
+                target_pitches = [(existing_pitch + 7) % 12, (existing_pitch + 5) % 12]
+                target_pitches = [t for t in target_pitches if t in new_pitches]
+                if target_pitches:
+                    p = random.choice(target_pitches)
+                    pitches[name].append(p)
+                    new_pitches.remove(p)
+                    continue
+
             p = random.choice(new_pitches)
             if len(pitches[name]) < self.musicians[name]['max_notes']:
                 pitches[name].append(p)
@@ -612,9 +626,9 @@ class Piece(object):
         return chord_type_counter
 
     def report_reality(self):
-        print ''.join(['{:<8}'.format(name) for name in self.musicians_score_order])
+        print ''.join(['{:<12}'.format(name) for name in self.musicians_score_order])
         for item in self.reality:
-            print ''.join(['{:<8}'.format(' '.join([str(pc) for pc in item.get(name, [])])) for name in self.musicians_score_order])
+            print ''.join(['{:<12}'.format(' '.join([str(pc) for pc in item.get(name, [])])) for name in self.musicians_score_order])
 
     def pngs(self):
         for event_index, event in enumerate(self.score):
