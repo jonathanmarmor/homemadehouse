@@ -545,6 +545,12 @@ class Piece(object):
         pitches.sort()
         return tuple(pitches)
 
+    def count_gaps(self):
+        self.gaps = 0
+        for h in self.harmonies[:-1]:
+            if not h:
+                self.gaps += 1
+
     # Reporting, displaying
 
     def notate_harmonies(self):
