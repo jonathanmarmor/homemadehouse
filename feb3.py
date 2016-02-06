@@ -64,7 +64,7 @@ class Piece(object):
         self.path = 'output/house_{}'.format(self.timestamp)
         os.mkdir(self.path)
         self.backup_path = os.path.join(self.path, 'backup.json')
-        self.dont_save = ['_event_generator', 'prev_event', 'n', 'prev_harmony', 'prev_state', ]
+        self.dont_save = ['_event_generator', 'n', 'prev_harmony', 'prev_state', ]
         self.counters = ['pc_counter', 'pitchclass_count', 'exception_counter']
 
         self.musicians = {
@@ -150,7 +150,6 @@ class Piece(object):
         self.instrument_names = [self.musicians[name]['instrument'] for name in self.musicians_score_order]
 
         self.prev_state = {name: [] for name in self.musicians}
-        self.prev_event = {}
         self.prev_harmony = ()
 
         self.score = []
@@ -434,7 +433,10 @@ class Piece(object):
     def get_eligible_to_change(self, depth=10):
         # If an instrument started in the last event then it can only rarely
         # change in this event
-        not_eligible = [name for name in self.prev_event if self.prev_event[name] != 'stop' and random.random() < .85]
+        prev_event = {}
+        if self.score:
+            prev_event = self.score[-1]
+        not_eligible = [name for name in prev_event if prev_event[name] != 'stop' and random.random() < .85]
 
         # The soloist should play through the first three events
         if 1 < self.n < 4:
@@ -482,7 +484,6 @@ class Piece(object):
     def add_event(self, event):
         self.score.append(event)
         self.n += 1
-        self.prev_event = event
 
         self.prev_state = {}
         for name in event:
