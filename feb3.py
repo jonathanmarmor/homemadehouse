@@ -64,7 +64,7 @@ class Piece(object):
         self.path = 'output/house_{}'.format(self.timestamp)
         os.mkdir(self.path)
         self.backup_path = os.path.join(self.path, 'backup.json')
-        self.dont_save = ['_event_generator', 'n', 'prev_state', ]
+        self.dont_save = ['_event_generator', 'n']
         self.counters = ['pc_counter', 'pitchclass_count', 'exception_counter']
 
         self.musicians = {
@@ -149,8 +149,6 @@ class Piece(object):
 
         self.instrument_names = [self.musicians[name]['instrument'] for name in self.musicians_score_order]
 
-        self.prev_state = {name: [] for name in self.musicians}
-
         self.score = []
         self.grid = {name: [] for name in self.musicians}
 
@@ -160,7 +158,7 @@ class Piece(object):
         self.harmonies = []
 
         # Keep one or the other of these counters. pitchclass_count is a newer implementation and probably more correct.
-        self.pitchclass_count = Counter()  #
+        self.pitchclass_count = Counter()
         self.pc_counter = Counter()
 
         self._event_generator = self._get_event_generator()
@@ -189,6 +187,13 @@ class Piece(object):
         print 'SAVING TO {}'.format(self.backup_path)
         self.save()
 
+    @property
+    def previous_state(self):
+        if self.reality:
+            return self.reality[-1]
+        else:
+            return {name: [] for name in self.musicians_score_order}
+
     def make_event(self):
         # Choose which musicians will start and stop playing. Get the set of
         # pitches that will sustain from the previous state.
@@ -211,7 +216,7 @@ class Piece(object):
 
     def get_entering_exiting_and_holdover_pitches(self):
         changing = self.get_changing_musicians()
-        entering, exiting = self.get_enterers_and_exiters(changing, self.prev_state)
+        entering, exiting = self.get_enterers_and_exiters(changing, self.previous_state)
         holdover_pitches = self.get_holdover_pitches(changing)
 
         if not entering and not is_allowed(holdover_pitches):
@@ -372,9 +377,9 @@ class Piece(object):
         # Get pitches that are sustaining from previous
         holdover_pitches = []
         not_changing = [name for name in self.musicians if name not in changing]
-        holdovers = [name for name in not_changing if self.prev_state[name]]
+        holdovers = [name for name in not_changing if self.previous_state.get(name)]
         for name in holdovers:
-            for p in self.prev_state[name]:
+            for p in self.previous_state.get(name, []):
                 if p not in holdover_pitches:
                     holdover_pitches.append(p)
         holdover_pitches.sort()
@@ -401,7 +406,7 @@ class Piece(object):
         n_events_remaining = self.n_events - len(self.score)
         if n_events_remaining <= len(self.musicians):
             # End game, everyone needs to stop
-            playing = [name for name in self.prev_state if self.prev_state[name]]
+            playing = [name for name in self.previous_state if self.previous_state.get(name)]
             if not playing:
                 # We're done.
                 self.done = True
@@ -484,12 +489,6 @@ class Piece(object):
         self.score.append(event)
         self.n += 1
 
-        self.prev_state = {}
-        for name in event:
-            self.prev_state[name] = event[name]
-            if event[name] == 'stop':
-                self.prev_state[name] = []
-
         for name in event:
             self.grid[name].append(event[name])
 
@@ -501,7 +500,6 @@ class Piece(object):
             if prev == 'stop':
                 prev = []
             self.grid[name].append(prev)
-            self.prev_state[name] = prev
 
         # Extend reality :)
         new_reality = self._get_new_reality(event)
