@@ -64,7 +64,7 @@ class Piece(object):
         self.path = 'output/house_{}'.format(self.timestamp)
         os.mkdir(self.path)
         self.backup_path = os.path.join(self.path, 'backup.json')
-        self.dont_save = ['_event_generator', 'n', 'prev_harmony', 'prev_state', ]
+        self.dont_save = ['_event_generator', 'n', 'prev_state', ]
         self.counters = ['pc_counter', 'pitchclass_count', 'exception_counter']
 
         self.musicians = {
@@ -150,7 +150,6 @@ class Piece(object):
         self.instrument_names = [self.musicians[name]['instrument'] for name in self.musicians_score_order]
 
         self.prev_state = {name: [] for name in self.musicians}
-        self.prev_harmony = ()
 
         self.score = []
         self.grid = {name: [] for name in self.musicians}
@@ -231,8 +230,8 @@ class Piece(object):
             # print 'new seed', new_seed
             harmony_options = find_all_supersets([new_seed])
 
-        if self.prev_harmony in harmony_options:
-            harmony_options.remove(self.prev_harmony)
+        if self.harmonies and self.harmonies[-1] in harmony_options:
+            harmony_options.remove(self.harmonies[-1])
 
         if not harmony_options:
             raise Exception('Only harmony option is the previous harmony')
@@ -504,17 +503,13 @@ class Piece(object):
             self.grid[name].append(prev)
             self.prev_state[name] = prev
 
-        self.prev_harmony = self.get_harmony()
-        for p in self.prev_harmony:
-            self.pc_counter[p] += 1
-
         # Extend reality :)
         new_reality = self._get_new_reality(event)
         self.reality.append(new_reality)
 
         # Calculate new harmony and append to list of harmonies
         previous_harmony = []
-        if len(self.harmonies):
+        if self.harmonies:
             previous_harmony = self.harmonies[-1]
 
         harmony = []
@@ -523,7 +518,11 @@ class Piece(object):
             harmony.extend(pitches)
         harmony = list(set(harmony))
         harmony.sort()
+        harmony = tuple(harmony)
         self.harmonies.append(harmony)
+
+        for p in harmony:
+            self.pc_counter[p] += 1
 
         # Count pitchclasses
         new_pitchclasses = [p for p in harmony if p not in previous_harmony]
@@ -647,11 +646,7 @@ class Piece(object):
         return lines
 
     def count_chord_types(self, chords):
-        [c.sort() for c in chords]
-        chords = [tuple(c) for c in chords]
-
         chord_type_counter = Counter()
-
         for chord in chords:
             transpositions = get_all_transpositions(chord)
             for t in transpositions:
