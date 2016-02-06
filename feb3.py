@@ -596,6 +596,9 @@ class Piece(object):
             print
 
     def report_rhythm(self):
+        max_name_length = max([len(n) for n in self.musicians_score_order])
+        label_template = '{{:<{}}}  '.format(max_name_length)
+        lines = []
         for name in self.musicians_score_order:
             line = []
             for event in self.grid[name]:
@@ -603,7 +606,10 @@ class Piece(object):
                     line.append(' ')
                 else:
                     line.append('-')
-            print '{:<15}  {}'.format(name, ''.join(line))
+
+            line = label_template.format(name) + ''.join(line)
+            lines.append(line)
+        return '\n'.join(lines)
 
     def report_harmonies(self):
         c = Counter()
@@ -688,7 +694,7 @@ class Piece(object):
         print
         self.report_score()
         print
-        self.report_rhythm()
+        print self.report_rhythm()
         print
         self.report_harmonies()
         print
@@ -785,7 +791,7 @@ if __name__ == '__main__':
         print
 
     if args.rhythm:
-        p.report_rhythm()
+        print p.report_rhythm()
         print
 
     if args.harmonies:
