@@ -163,9 +163,6 @@ class Piece(object):
 
         self._event_generator = self._get_event_generator()
 
-    def __repr__(self):
-        return self.reports()
-
     def _get_event_generator(self):
         while True:
             event = try_f(self.make_event)
@@ -186,13 +183,6 @@ class Piece(object):
 
         print 'SAVING TO {}'.format(self.backup_path)
         self.save()
-
-    @property
-    def previous_state(self):
-        if self.reality:
-            return self.reality[-1]
-        else:
-            return {name: [] for name in self.musicians_score_order}
 
     def make_event(self):
         # Choose which musicians will start and stop playing. Get the set of
@@ -484,6 +474,20 @@ class Piece(object):
         n_musicians_weights = list(reversed([2 ** n for n in n_musicians_opts]))
         n_musicians_weights[0] = n_musicians_weights[1]
         return weighted_choice_lists(n_musicians_opts, n_musicians_weights)
+
+    #############
+    # Score Tools
+    #############
+
+    def __repr__(self):
+        return self.reports()
+
+    @property
+    def previous_state(self):
+        if self.reality:
+            return self.reality[-1]
+        else:
+            return {name: [] for name in self.musicians_score_order}
 
     def add_event(self, event):
         self.score.append(event)
