@@ -1,5 +1,6 @@
 import os
 import json
+import datetime
 from collections import Counter
 
 from harmony_utils import get_all_transpositions, allowed_chord_types
@@ -15,6 +16,9 @@ def spell(chord):
 
 
 class Grid(object):
+    dont_save = ['_event_generator', 'n', 'try_f']
+    counters = ['pc_counter', 'pitchclass_count']
+
     def __repr__(self):
         return self.reports()
 
@@ -235,6 +239,13 @@ class Grid(object):
         return ''
 
     def save(self):
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+        path = 'output/house_{}'.format(timestamp)
+        os.mkdir(path)
+        self.backup_path = os.path.join(path, 'backup.json')
+
+        print 'SAVING TO {}'.format(self.backup_path)
+
         d = {key: self.__dict__[key] for key in self.__dict__ if key not in self.dont_save}
         for key in self.counters:
             d[key] = list(d[key].elements())

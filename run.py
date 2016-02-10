@@ -14,10 +14,16 @@ class Runner(object):
     def get_piece(self, n_events=40, quentin=False):
         while True:
             self.exception_counter = Counter()
-            p = Piece(self, n_events=n_events, quentin=quentin)
-            p.run()
-            if p.gaps:
-                return p
+            piece = Piece(self, n_events=n_events, quentin=quentin)
+            piece.run()
+            if self.is_good(piece):
+                piece.save()
+                return piece
+
+    def is_good(self, piece):
+        # TODO add more assessment of the whole piece here if you want.
+        if piece.gaps:
+            return True
 
     def try_f(self, f, args=[], kwargs={}, depth=0):
         """Dumb way to try a random process a bunch of times."""

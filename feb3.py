@@ -1,5 +1,3 @@
-import os
-import datetime
 import random
 from collections import Counter, defaultdict
 
@@ -25,13 +23,6 @@ class Piece(Grid):
         self.n_events = n_events
         self.done = False
         self.n = 0
-
-        self.timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-        self.path = 'output/house_{}'.format(self.timestamp)
-        os.mkdir(self.path)
-        self.backup_path = os.path.join(self.path, 'backup.json')
-        self.dont_save = ['_event_generator', 'n', 'try_f']
-        self.counters = ['pc_counter', 'pitchclass_count']
 
         self.musicians = {
             'Andrea': {
@@ -146,9 +137,6 @@ class Piece(Grid):
             self.next()
 
         self.count_gaps()
-
-        print 'SAVING TO {}'.format(self.backup_path)
-        self.save()
 
     def make_event(self):
         # Choose which musicians will start and stop playing. Get the set of
