@@ -2,6 +2,7 @@
 
 from argparse import ArgumentParser
 from collections import Counter
+import datetime
 
 from feb3 import Piece
 
@@ -10,11 +11,16 @@ class Runner(object):
     def __init__(self, test=False, max_depth=500):
         self.test = test
         self.max_depth = max_depth
+        self.start_time = datetime.datetime.now()
 
     def get_piece(self, n_events=40, quentin=False):
+        i = 0
         while True:
+            print i
+            i += 1
             self.exception_counter = Counter()
             piece = Piece(self, n_events=n_events, quentin=quentin)
+            self.start_time = datetime.datetime.now()
             piece.run()
             if self.is_good(piece):
                 piece.save()
@@ -22,8 +28,35 @@ class Runner(object):
 
     def is_good(self, piece):
         # TODO add more assessment of the whole piece here if you want.
-        if piece.gaps:
-            return True
+
+        # Should have:
+        # - at least one gap
+        if piece.gaps < 1:
+            return False
+
+        # - at least one solo for Kristin
+        if piece.solos['Kristin'] < 1:
+            return False
+        # - at least one solo for Trevor
+        if piece.solos['Trevor'] < 1:
+            return False
+
+        # - at least 3 states where everyone is playing
+        if piece.density[5] < 3:
+            return False
+        # # At least 8 quartets
+        # if piece.density[4] < 8:
+        #     return False
+        # # There should be more quartets than trios
+        # if piece.density[4] < piece.density[3]:
+        #     return False
+        # # if piece.density[3] < piece.density[2]:
+        # #     return False
+        # No more than 5 solos
+        if piece.density[1] > 5:
+            return False
+
+        return True
 
     def try_f(self, f, args=[], kwargs={}, depth=0):
         """Dumb way to try a random process a bunch of times."""
@@ -34,9 +67,12 @@ class Runner(object):
             return f(*args, **kwargs)
         except Exception as e:
             self.exception_counter['{}: {}'.format(f.__name__, e.message)] += 1
-            if depth == self.max_depth:
-                msg = "C'mon, you tried {} {} times. Fix the code already. Exception: {}"
+            timed_out = datetime.datetime.now() - self.start_time > datetime.timedelta(0, 4)
+            if depth == self.max_depth or timed_out:
+                msg = "Tried {} {} times. Exception: {}"
                 msg = msg.format(f.__name__, self.max_depth, e)
+                if timed_out:
+                    msg += ' Timed out.'
                 print msg
                 raise e
             return self.try_f(f, args=args, kwargs=kwargs, depth=depth)

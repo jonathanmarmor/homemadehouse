@@ -81,7 +81,7 @@ class Grid(object):
         if len(self.reality):
             previous_reality = self.reality[-1]
 
-        for musician in self.musicians:
+        for musician in self.musicians_score_order:
             previous = previous_reality.get(musician)
             action = event.get(musician)
 
@@ -116,7 +116,28 @@ class Grid(object):
             if not h:
                 self.gaps += 1
 
+    def count_tutti(self):
+        """Count the number of states where everyone is playing."""
+        self.tutti = 0
+        for state in self.reality[1:]:
+            if all([state.get(name) for name in self.musicians_score_order]):
+                self.tutti += 1
+
+    def count_solos(self):
+        self.solos = Counter()
+        for state in self.reality[1:]:  # This includes the soloists' solo in state #2
+            playing = [name for name in self.musicians_score_order if state.get(name)]
+            if len(playing) == 1:
+                self.solos[playing[0]] += 1
+
     # Reporting, displaying
+
+    def report_density(self):
+        self.density = Counter()
+        for state in self.reality:
+            self.density[len(state)] += 1
+
+        return self.density.most_common()
 
     def notate_harmonies(self):
         notate_score(
@@ -158,7 +179,7 @@ class Grid(object):
         actual_length = len(self.grid[self.grid.keys()[0]])
         for e in range(actual_length):
             pitches = []
-            for name in self.musicians:
+            for name in self.musicians_score_order:
                 if self.grid[name][e] != 'stop':
                     for p in self.grid[name][e]:
                         if p not in pitches:
@@ -236,13 +257,17 @@ class Grid(object):
         self.report_harmonies()
         print
         self.report_reality()
+        print
+        print 'Density'
+        for d, c in self.report_density():
+            print d, c
         return ''
 
     def save(self):
         timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-        path = 'output/house_{}'.format(timestamp)
-        os.mkdir(path)
-        self.backup_path = os.path.join(path, 'backup.json')
+        self.path = 'output/house_{}'.format(timestamp)
+        os.mkdir(self.path)
+        self.backup_path = os.path.join(self.path, 'backup.json')
 
         print 'SAVING TO {}'.format(self.backup_path)
 

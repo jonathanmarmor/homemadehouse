@@ -7,7 +7,7 @@ from grid import Grid
 
 
 def funny_range(steps, top, bottom):
-    """get `steps` numbers equally distributed between `top` and `bottom`"""
+    """Get `steps` numbers equally distributed between `top` and `bottom`."""
     if steps == 0:
         return []
     if steps == 1:
@@ -137,6 +137,9 @@ class Piece(Grid):
             self.next()
 
         self.count_gaps()
+        self.count_tutti()
+        self.count_solos()
+        self.report_density()
 
     def make_event(self):
         # Choose which musicians will start and stop playing. Get the set of
@@ -347,6 +350,12 @@ class Piece(Grid):
         if self.n == 1:
             return self.non_soloist_starters
 
+        if self.n == 2:
+            return ['Andrea']
+
+        if self.n == 3:
+            return ['Kristin']
+
         n_events_remaining = self.n_events - len(self.score)
         if n_events_remaining <= len(self.musicians):
             # End game, everyone needs to stop
@@ -384,7 +393,7 @@ class Piece(Grid):
         prev_event = {}
         if self.score:
             prev_event = self.score[-1]
-        not_eligible = [name for name in prev_event if prev_event[name] != 'stop' and random.random() < .85]
+        not_eligible = [name for name in prev_event if prev_event[name] != 'stop' and random.random() < .95]
 
         # The soloist should play through the first three events
         if 1 < self.n < 4:
@@ -401,30 +410,31 @@ class Piece(Grid):
                     not_eligible.append(name)
 
                 # If the instrument started then continued, make it less
-                # likely to start now.
+                # likely to stop now.
                 if name not in self.score[-1] and \
                         self.score[-2].get(name) is not None and \
                         self.score[-2].get(name) is not 'stop' and \
                         name not in not_eligible and \
-                        random.random() < .5:
+                        random.random() < .6:
                     not_eligible.append(name)
 
                 # If the instrument didn't change (was resting or playing)
                 # in the last event, half the time they are inelligible
                 if name not in self.score[-1] and \
                         name not in not_eligible and \
-                        random.random() < .5:
+                        random.random() < .7:
                     not_eligible.append(name)
 
         eligible = [name for name in self.musicians_score_order if name not in not_eligible]
         return eligible
 
     def choose_number_changing(self, eligible):
-        if self.n == 2:
-            return random.choice([1, 2])
+        # if self.n == 2:
+        #     return random.choice([1, 2])
 
         max_n_musicians = len(eligible) + 1
         n_musicians_opts = range(1, max_n_musicians)
-        n_musicians_weights = list(reversed([2 ** n for n in n_musicians_opts]))
-        n_musicians_weights[0] = n_musicians_weights[1]
+        # n_musicians_weights = list(reversed([2 ** n for n in n_musicians_opts]))
+        n_musicians_weights = list([2 ** n for n in n_musicians_opts])
+        # n_musicians_weights[0] = n_musicians_weights[1]
         return weighted_choice_lists(n_musicians_opts, n_musicians_weights)
