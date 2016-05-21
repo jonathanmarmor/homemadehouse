@@ -44,6 +44,10 @@ class Piece(Grid):
             'Trevor': {
                 'instrument': 'Piano',
                 'max_notes': 10
+            },
+            'Jonathan': {
+                'instrument': 'Clarinet',
+                'max_notes': 4
             }
         }
         self.musicians_score_order = [
@@ -51,6 +55,7 @@ class Piece(Grid):
             'Andrea',
             'Kristin',
             'Trevor',
+            'Jonathan',
             'Rachel'
         ]
         self.soloist = 'Jessica'
@@ -409,6 +414,14 @@ class Piece(Grid):
                         random.random() < .75:
                     not_eligible.append(name)
 
+                # If the instrument just started, make it less likely to
+                # stop now
+                if self.score[-1].get(name) and \
+                        self.score[-1].get(name) is not 'stop' and \
+                        name not in not_eligible and \
+                        random.random() < .75:
+                    not_eligible.append(name)
+
                 # If the instrument started then continued, make it less
                 # likely to stop now.
                 if name not in self.score[-1] and \
@@ -432,9 +445,17 @@ class Piece(Grid):
         # if self.n == 2:
         #     return random.choice([1, 2])
 
-        max_n_musicians = len(eligible) + 1
-        n_musicians_opts = range(1, max_n_musicians)
+        max_n_musicians = len(eligible)
+        n_musicians_opts = range(1, max_n_musicians + 1)
         # n_musicians_weights = list(reversed([2 ** n for n in n_musicians_opts]))
-        n_musicians_weights = list([2 ** n for n in n_musicians_opts])
+        n_musicians_weights = list([4 ** n for n in n_musicians_opts])
+
+        # Reduce the chance of solo changes
+        if 1 in n_musicians_opts:
+            i = n_musicians_opts.index(1)
+            n_musicians_weights[i] = 1
+
         # n_musicians_weights[0] = n_musicians_weights[1]
-        return weighted_choice_lists(n_musicians_opts, n_musicians_weights)
+        choice = weighted_choice_lists(n_musicians_opts, n_musicians_weights)
+        print 'n_musicians_opts:', n_musicians_opts, 'n_musicians_weights', n_musicians_weights, choice
+        return choice

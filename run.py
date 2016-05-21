@@ -38,12 +38,17 @@ class Runner(object):
         if piece.solos['Kristin'] < 1:
             return False
         # - at least one solo for Trevor
-        if piece.solos['Trevor'] < 1:
-            return False
+        # if piece.solos['Trevor'] < 1:
+        #     return False
 
-        # - at least 3 states where everyone is playing
+        # - at least 3 states where five people are playing
         if piece.density[5] < 3:
             return False
+
+        # - at least 2 states where six people are playing
+        if piece.density[6] < 2:
+            return False
+
         # # At least 8 quartets
         # if piece.density[4] < 8:
         #     return False
